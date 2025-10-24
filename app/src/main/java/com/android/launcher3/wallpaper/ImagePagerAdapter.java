@@ -52,7 +52,13 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
                 .inflate(R.layout.item_image_pager, parent, false);
         return new ViewHolder(view);
     }
-    
+    /**
+     * 更新数据的方法
+     */
+    public void updateData(List<ImageItem> newImageList) {
+        this.imageList = newImageList;
+        notifyDataSetChanged();
+    }
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         ImageItem item = imageList.get(position);
