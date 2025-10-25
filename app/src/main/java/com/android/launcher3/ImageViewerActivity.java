@@ -1,8 +1,6 @@
 package com.android.launcher3;
 
-import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -12,17 +10,16 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager2.widget.ViewPager2;
 
-import com.android.launcher3.wallpaper.FileAccessHelper;
 import com.android.launcher3.wallpaper.ImageItem;
 import com.android.launcher3.wallpaper.ImagePagerAdapter;
-import com.android.launcher3.wallpaper.PermissionChecker;
+import com.android.launcher3.wallpaper.MediaStoreHelper;
+import com.android.launcher3.wallpaper.PermissionHelper;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ImageViewerActivity extends AppCompatActivity {
-    private static final String TAG = "ImageViewerActivity";
+    private static final String TAG = "ljd ImageViewerActivity";
     
     private ViewPager2 viewPager;
     private ImagePagerAdapter adapter;
@@ -45,7 +42,45 @@ public class ImageViewerActivity extends AppCompatActivity {
         checkPermissionsAndLoad();
         setupListeners();
     }
-    
+    private void setupListeners() {
+        btnDelete.setOnClickListener(v -> {
+            showDeleteConfirmDialog(currentPosition);
+        });
+
+        btnReload.setOnClickListener(v -> {
+            reloadMediaFiles();
+        });
+
+        // 添加调试按钮
+        Button btnDebug = findViewById(R.id.btnDebug);
+        btnDebug.setOnClickListener(v -> {
+            runDebugTests();
+        });
+    }
+
+    private void runDebugTests() {
+        new Thread(() -> {
+            Log.d(TAG, "=== 开始调试测试 ===");
+
+            // 测试MediaStore访问
+            MediaStoreHelper.testMediaStoreAccess(this);
+
+            // 测试特定目录访问
+            List<ImageItem> testFiles = MediaStoreHelper.loadImagesFromSpecificDirectory(this, "LionWallpaper");
+            Log.d(TAG, "LionWallpaper目录文件数: " + testFiles.size());
+
+            // 测试所有图片访问
+            List<ImageItem> allFiles = MediaStoreHelper.loadAllImages(this);
+            Log.d(TAG, "所有图片文件数: " + allFiles.size());
+
+            runOnUiThread(() -> {
+                Toast.makeText(this,
+                        "调试完成，查看Logcat\nLionWallpaper: " + testFiles.size() +
+                                "个\n总图片: " + allFiles.size() + "个",
+                        Toast.LENGTH_LONG).show();
+            });
+        }).start();
+    }
     private void initViews() {
         viewPager = findViewById(R.id.viewPager);
         tvCurrentPosition = findViewById(R.id.tvCurrentPosition);
@@ -56,7 +91,7 @@ public class ImageViewerActivity extends AppCompatActivity {
     }
     
     private void checkPermissionsAndLoad() {
-        if (PermissionChecker.hasStoragePermission(this)) {
+        if (PermissionHelper.hasStoragePermission(this)) {
             loadAllData();
         } else {
             showPermissionDialog();
@@ -66,9 +101,12 @@ public class ImageViewerActivity extends AppCompatActivity {
     private void showPermissionDialog() {
         new AlertDialog.Builder(this)
             .setTitle("需要存储权限")
-            .setMessage("需要存储权限来访问SDCard中的图片和PAG文件")
+            .setMessage("需要存储权限来访问媒体库中的图片和PAG文件\n\n" +
+                       "建议将文件放在以下目录：\n" +
+                       "• Pictures/ - 图片目录\n" +
+                       "• Download/ - 下载目录")
             .setPositiveButton("授权", (dialog, which) -> {
-                PermissionChecker.requestStoragePermission(this);
+                PermissionHelper.requestStoragePermission(this);
             })
             .setNegativeButton("仅使用内置资源", (dialog, which) -> {
                 loadLocalResourcesOnly();
@@ -77,25 +115,7 @@ public class ImageViewerActivity extends AppCompatActivity {
             .show();
     }
     
-    private void loadAllData() {
-        imageList = new ArrayList<>();
-        
-        // 添加本地资源
-        addLocalResources();
-        
-        // 添加SDCard文件
-        addSdcardFiles();
-        
-        setupViewPager();
-        
-        Log.d(TAG, "数据加载完成，总共: " + imageList.size() + " 个文件");
-        Log.d(TAG, "SDCard文件: " + getSdcardCount() + " 个");
-        Log.d(TAG, "本地资源: " + getLocalCount() + " 个");
-        
-        if (getSdcardCount() == 0) {
-            Toast.makeText(this, "未找到SDCard文件，请检查权限和文件路径", Toast.LENGTH_LONG).show();
-        }
-    }
+
     
     private void addLocalResources() {
         // 添加本地PNG资源
@@ -118,70 +138,58 @@ public class ImageViewerActivity extends AppCompatActivity {
             imageList.add(item);
         }
     }
-    
-    private void addSdcardFiles() {
-        // 测试多个可能的目录路径
-        String[] possibleDirectories = {
-            "/storage/emulated/0/LionWallpaper",
-            "/sdcard/LionWallpaper",
-            Environment.getExternalStorageDirectory() + "/LionWallpaper"
-        };
-        
-        List<String> allSdcardFiles = new ArrayList<>();
-        
-        for (String directory : possibleDirectories) {
-            Log.d(TAG, "扫描目录: " + directory);
-            List<String> files = FileAccessHelper.scanDirectory(directory);
-            allSdcardFiles.addAll(files);
+    private void addMediaStoreFiles() {
+        // 方法1：尝试从特定目录加载
+        Log.d(TAG, "尝试从 LionWallpaper 目录加载文件...");
+        List<ImageItem> specificFiles = MediaStoreHelper.loadImagesFromSpecificDirectory(this, "LionWallpaper");
+
+        if (!specificFiles.isEmpty()) {
+            imageList.addAll(specificFiles);
+            Log.d(TAG, "从 LionWallpaper 目录成功加载 " + specificFiles.size() + " 个文件");
+            return;
         }
-        
-        // 如果没有扫描到文件，尝试直接添加已知文件路径
-        if (allSdcardFiles.isEmpty()) {
-            Log.d(TAG, "目录扫描未找到文件，尝试直接添加已知文件");
-            addKnownSdcardFiles();
-        } else {
-            // 添加扫描到的文件
-            for (String filePath : allSdcardFiles) {
-                ImageItem item = new ImageItem(filePath, new File(filePath).getName());
-                imageList.add(item);
-                Log.d(TAG, "成功添加SDCard文件: " + filePath);
-            }
+
+        // 方法2：如果特定目录没找到，加载所有图片
+        Log.d(TAG, "特定目录未找到文件，尝试加载所有图片...");
+        List<ImageItem> allFiles = MediaStoreHelper.loadAllImages(this);
+        imageList.addAll(allFiles);
+
+        // 方法3：测试MediaStore访问
+        MediaStoreHelper.testMediaStoreAccess(this);
+    }
+
+    // 在 loadAllData() 方法中添加调试信息
+    private void loadAllData() {
+        imageList = new ArrayList<>();
+
+        // 添加本地资源
+        addLocalResources();
+
+        // 添加媒体库文件（使用MediaStore）
+        addMediaStoreFiles();
+
+        setupViewPager();
+
+        Log.d(TAG, "=== 数据加载统计 ===");
+        Log.d(TAG, "总共: " + imageList.size() + " 个文件");
+        Log.d(TAG, "媒体库文件: " + getSdcardCount() + " 个");
+        Log.d(TAG, "本地资源: " + getLocalCount() + " 个");
+
+        // 显示详细的文件列表
+        for (int i = 0; i < imageList.size(); i++) {
+            ImageItem item = imageList.get(i);
+            Log.d(TAG, "文件[" + i + "]: " + item.getTitle() +
+                    " | 来源: " + (item.isFromSDCard() ? "媒体库" : "本地") +
+                    " | 类型: " + (item.getType() == ImageItem.TYPE_PAG ? "PAG" : "图片"));
+        }
+
+        if (getSdcardCount() == 0) {
+            Toast.makeText(this,
+                    "未找到媒体库文件\n请检查文件是否在Download/LionWallpaper目录\n查看Logcat获取详细信息",
+                    Toast.LENGTH_LONG).show();
         }
     }
-    
-    private void addKnownSdcardFiles() {
-        // 直接添加已知的文件路径进行测试
-        String basePath = Environment.getExternalStorageDirectory().getAbsolutePath();
-        String[] testFiles = {
-                basePath + "/LionWallpaper/111.png",
-                basePath + "/LionWallpaper/222.jpg",
-                basePath + "/LionWallpaper/blue_bmp.pag",
-                basePath + "/LionWallpaper/red_bmp.pag",
-                basePath + "/LionWallpaper/white_bmp.pag",
-                basePath + "/LionWallpaper/test.pag"
-        };
-//        String[] testFiles = {
-//            "/storage/emulated/0/LionWallpaper/111.png",
-//            "/storage/emulated/0/LionWallpaper/222.pag",
-//            "/storage/emulated/0/LionWallpaper/333.png",
-//            "/sdcard/LionWallpaper/111.png",
-//            "/sdcard/LionWallpaper/222.pag"
-//        };
-        
-        for (String filePath : testFiles) {
-            if (FileAccessHelper.isFileAccessible(filePath)) {
-                ImageItem item = new ImageItem(filePath, new File(filePath).getName());
-                imageList.add(item);
-                Log.d(TAG, "直接添加成功: " + filePath);
-                
-                // 显示文件信息用于调试
-                String fileInfo = FileAccessHelper.getFileInfo(filePath);
-                Log.d(TAG, "文件信息: " + fileInfo);
-            } else {
-                Log.w(TAG, "文件不可访问: " + filePath);
-            }
-        }
-    }
+
     
     private void loadLocalResourcesOnly() {
         imageList = new ArrayList<>();
@@ -190,32 +198,39 @@ public class ImageViewerActivity extends AppCompatActivity {
         Toast.makeText(this, "已加载 " + imageList.size() + " 个内置资源", Toast.LENGTH_SHORT).show();
     }
     
-//    private void reloadSdcardFiles() {
-//        if (!PermissionChecker.hasStoragePermission(this)) {
-//            Toast.makeText(this, "没有存储权限", Toast.LENGTH_SHORT).show();
-//            return;
-//        }
-//
-//        // 移除现有的SDCard文件，保留本地资源
-//        List<ImageItem> localItems = new ArrayList<>();
-//        for (ImageItem item : imageList) {
-//            if (item.isFromLocal()) {
-//                localItems.add(item);
-//            }
-//        }
-//
-//        imageList = localItems;
-//        addSdcardFiles();
-//
-//        if (adapter != null) {
-//            adapter.updateData(imageList);
-//            updatePositionInfo();
-//            updateFileInfo();
-//        }
-//
-//        Toast.makeText(this, "重新加载完成，SDCard文件: " + getSdcardCount() + " 个",
-//                     Toast.LENGTH_SHORT).show();
-//    }
+    private void reloadMediaFiles() {
+        if (!PermissionHelper.hasStoragePermission(this)) {
+            Toast.makeText(this, "没有存储权限", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 移除现有的媒体库文件，保留本地资源
+        List<ImageItem> localItems = new ArrayList<>();
+        for (ImageItem item : imageList) {
+            if (item.isFromLocal()) {
+                localItems.add(item);
+            }
+        }
+        
+        imageList = localItems;
+        addMediaStoreFiles();
+        
+        if (adapter != null) {
+            adapter.updateData(imageList);
+            
+            // 重置到第一页
+            if (!imageList.isEmpty()) {
+                viewPager.setCurrentItem(0, false);
+                currentPosition = 0;
+            }
+            
+            updatePositionInfo();
+            updateFileInfo();
+        }
+        
+        Toast.makeText(this, "重新加载完成，媒体库文件: " + getSdcardCount() + " 个", 
+                     Toast.LENGTH_SHORT).show();
+    }
     
     private int getSdcardCount() {
         int count = 0;
@@ -264,15 +279,7 @@ public class ImageViewerActivity extends AppCompatActivity {
         updateFileInfo();
     }
     
-    private void setupListeners() {
-        btnDelete.setOnClickListener(v -> {
-            showDeleteConfirmDialog(currentPosition);
-        });
-        
-        btnReload.setOnClickListener(v -> {
-            reloadSdcardFiles();
-        });
-    }
+
     
     private void updatePositionInfo() {
         String positionText = (currentPosition + 1) + " / " + imageList.size();
@@ -290,14 +297,8 @@ public class ImageViewerActivity extends AppCompatActivity {
         tvFileName.setText(currentItem.getTitle());
         
         String type = currentItem.getType() == ImageItem.TYPE_PAG ? "PAG动画" : "图片";
-        String source = currentItem.isFromSDCard() ? "SDCard" : "本地资源";
-        
-        if (currentItem.isFromSDCard() && currentItem.getFilePath() != null) {
-            String fileInfo = FileAccessHelper.getFileInfo(currentItem.getFilePath());
-            tvFileInfo.setText("类型: " + type + " | 来源: " + source + " | " + fileInfo);
-        } else {
-            tvFileInfo.setText("类型: " + type + " | 来源: " + source);
-        }
+        String source = currentItem.isFromSDCard() ? "媒体库" : "本地资源";
+        tvFileInfo.setText("类型: " + type + " | 来源: " + source);
     }
     
     private void toggleInfoVisibility() {
@@ -318,7 +319,7 @@ public class ImageViewerActivity extends AppCompatActivity {
         
         ImageItem item = imageList.get(position);
         String message = "确定要删除 \"" + item.getTitle() + "\" 吗？\n来源: " + 
-                        (item.isFromSDCard() ? "SDCard" : "本地资源");
+                        (item.isFromSDCard() ? "媒体库" : "本地资源");
         
         new AlertDialog.Builder(this)
             .setTitle("确认删除")
@@ -329,39 +330,7 @@ public class ImageViewerActivity extends AppCompatActivity {
             .setNegativeButton("取消", null)
             .show();
     }
-    private void reloadSdcardFiles() {
-        if (!PermissionChecker.hasStoragePermission(this)) {
-            Toast.makeText(this, "没有存储权限", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // 移除现有的SDCard文件，保留本地资源
-        List<ImageItem> localItems = new ArrayList<>();
-        for (ImageItem item : imageList) {
-            if (item.isFromLocal()) {
-                localItems.add(item);
-            }
-        }
-
-        imageList = localItems;
-        addSdcardFiles();
-
-        if (adapter != null) {
-            adapter.updateData(imageList); // 现在这个方法存在了
-
-            // 重置到第一页
-            if (!imageList.isEmpty()) {
-                viewPager.setCurrentItem(0, false);
-                currentPosition = 0;
-            }
-
-            updatePositionInfo();
-            updateFileInfo();
-        }
-
-        Toast.makeText(this, "重新加载完成，SDCard文件: " + getSdcardCount() + " 个",
-                Toast.LENGTH_SHORT).show();
-    }
+    
     private void deleteItem(int position) {
         if (position < 0 || position >= imageList.size()) return;
         
@@ -386,13 +355,21 @@ public class ImageViewerActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         
         if (requestCode == 1001) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            if (PermissionHelper.isPermissionGranted(grantResults)) {
                 Toast.makeText(this, "权限获取成功", Toast.LENGTH_SHORT).show();
                 loadAllData();
             } else {
                 Toast.makeText(this, "权限被拒绝", Toast.LENGTH_LONG).show();
                 loadLocalResourcesOnly();
             }
+        }
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (adapter != null) {
+            adapter = null;
         }
     }
 }

@@ -6,7 +6,6 @@ import java.io.File;
 public class ImageItem {
     public static final int TYPE_IMAGE = 0;
     public static final int TYPE_PAG = 1;
-    public static final int TYPE_RESOURCE = 2;
     
     public static final int SOURCE_SDCARD = 0;
     public static final int SOURCE_LOCAL = 1;
@@ -16,25 +15,15 @@ public class ImageItem {
     private int type;
     private String title;
     private Integer resourceId;
-    private int source; // 0: SDCard, 1: Local
+    private int source;
     
-    // SDCard文件构造方法
-    public ImageItem(String filePath, String title) {
-        this.filePath = filePath;
-        this.title = title;
-        this.type = getFileType(filePath);
-        this.source = SOURCE_SDCARD;
-        this.fileUri = null;
-        this.resourceId = null;
-    }
-    
-    // SDCard文件带URI构造方法
-    public ImageItem(String filePath, Uri fileUri, String title) {
+    // SDCard文件构造方法（带URI）
+    public ImageItem(String filePath, Uri fileUri, String title, int source) {
         this.filePath = filePath;
         this.fileUri = fileUri;
         this.title = title;
         this.type = getFileType(filePath);
-        this.source = SOURCE_SDCARD;
+        this.source = source;
         this.resourceId = null;
     }
     
@@ -49,7 +38,7 @@ public class ImageItem {
     }
     
     public static int getFileType(String filePath) {
-        if (filePath.toLowerCase().endsWith(".pag")) {
+        if (filePath != null && filePath.toLowerCase().endsWith(".pag")) {
             return TYPE_PAG;
         } else {
             return TYPE_IMAGE;
@@ -70,15 +59,15 @@ public class ImageItem {
     public boolean isFromLocal() { return source == SOURCE_LOCAL; }
     
     /**
-     * 获取用于Glide加载的源
+     * 获取用于Glide加载的源（优先使用Content URI）
      */
     public Object getGlideSource() {
         if (isResource()) {
             return resourceId;
         } else if (hasUri()) {
-            return fileUri;
+            return fileUri;  // 使用Content URI，这是Android 11+推荐的方式
         } else if (filePath != null) {
-            return getFile();
+            return getFile(); // 备用方案
         }
         return null;
     }

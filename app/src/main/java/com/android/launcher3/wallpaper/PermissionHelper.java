@@ -1,53 +1,38 @@
 package com.android.launcher3.wallpaper;
 
+import android.Manifest;
 import android.app.Activity;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import java.util.ArrayList;
-import java.util.List;
 
 public class PermissionHelper {
     private static final int PERMISSION_REQUEST_CODE = 1001;
     
-    public static String[] getRequiredPermissions() {
-        List<String> permissions = new ArrayList<>();
-        
+    public static boolean hasStoragePermission(Activity activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(android.Manifest.permission.READ_MEDIA_IMAGES);
+            return ContextCompat.checkSelfPermission(activity, 
+                Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED;
         } else {
-            permissions.add(android.Manifest.permission.READ_EXTERNAL_STORAGE);
+            return ContextCompat.checkSelfPermission(activity, 
+                Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
         }
-        
-        return permissions.toArray(new String[0]);
     }
     
-    public static boolean hasMediaReadPermission(Context context) {
-        String[] requiredPermissions = getRequiredPermissions();
-        for (String permission : requiredPermissions) {
-            if (ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
-                return false;
-            }
+    public static void requestStoragePermission(Activity activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(activity,
+                new String[]{Manifest.permission.READ_MEDIA_IMAGES},
+                PERMISSION_REQUEST_CODE);
+        } else {
+            ActivityCompat.requestPermissions(activity,
+                new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                PERMISSION_REQUEST_CODE);
         }
-        return true;
     }
     
-    public static void requestMediaReadPermission(Activity activity) {
-        String[] permissions = getRequiredPermissions();
-        ActivityCompat.requestPermissions(activity, permissions, PERMISSION_REQUEST_CODE);
-    }
-    
-    public static boolean handlePermissionResult(int requestCode, String[] permissions, int[] grantResults) {
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            for (int result : grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        return false;
+    public static boolean isPermissionGranted(int[] grantResults) {
+        return grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
     }
 }
