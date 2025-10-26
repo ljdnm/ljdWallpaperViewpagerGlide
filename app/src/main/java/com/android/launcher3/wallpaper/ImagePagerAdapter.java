@@ -1,6 +1,7 @@
 package com.android.launcher3.wallpaper;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +14,8 @@ import com.android.launcher3.R;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 import org.libpag.PAGView;
+
+import java.io.File;
 import java.util.List;
 
 public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.ViewHolder> {
@@ -76,7 +79,7 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
         TextView tvSource;
         View pagContainer;
         PAGView pagView;
-        
+
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             imageView = itemView.findViewById(R.id.imageView);
@@ -85,13 +88,13 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
             tvSource = itemView.findViewById(R.id.tvSource);
             pagContainer = itemView.findViewById(R.id.pagContainer);
             pagView = itemView.findViewById(R.id.pagView);
-            
+
             itemView.setOnClickListener(v -> {
                 if (onItemClickListener != null) {
                     onItemClickListener.onItemClick(getAdapterPosition());
                 }
             });
-            
+
             itemView.setOnLongClickListener(v -> {
                 if (onItemClickListener != null) {
                     onItemClickListener.onItemLongClick(getAdapterPosition());
@@ -100,32 +103,32 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
                 return false;
             });
         }
-        
+
         public void bind(ImageItem item, int position) {
             tvTitle.setText(item.getTitle());
             tvSource.setText(item.isFromSDCard() ? "媒体库" : "本地");
-            
+
             if (item.getType() == ImageItem.TYPE_PAG) {
                 bindPagItem(item);
             } else {
                 bindImageItem(item);
             }
         }
-        
+
         private void bindImageItem(ImageItem item) {
             tvType.setText("图片");
             pagContainer.setVisibility(View.GONE);
             imageView.setVisibility(View.VISIBLE);
-            
+
             if (pagView != null) {
                 pagView.stop();
                 pagView.freeCache();
             }
-            
+
             RequestOptions options = new RequestOptions()
                     .override(1080, 1920)
                     .centerInside();
-            
+
             Object glideSource = item.getGlideSource();
             if (glideSource != null) {
                 // Glide会自动处理Content URI
@@ -137,51 +140,87 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
                 imageView.setImageResource(android.R.drawable.ic_menu_report_image);
             }
         }
-        
+
         private void bindPagItem(ImageItem item) {
             tvType.setText("PAG动画");
             pagContainer.setVisibility(View.VISIBLE);
             imageView.setVisibility(View.GONE);
-            
+
             loadPagAnimation(item);
         }
-        
+
         private void loadPagAnimation(ImageItem item) {
             if (pagView == null) {
+                Log.e("ImagePagerAdapter", "PAGView为null");
                 return;
             }
-            
+
             try {
-                if (item.isFromSDCard() && item.hasUri()) {
-                    // 对于SDCard的PAG文件，使用文件路径
-                    // 注意：PAG库可能需要文件路径而不是URI
-                    String filePath = item.getFilePath();
-                    if (filePath != null) {
+                String filePath = item.getFilePath();
+                Log.d("ImagePagerAdapter", "开始加载PAG文件: " + filePath);
+
+                if (filePath != null) {
+                    File pagFile = new File(filePath);
+                    Log.d("ImagePagerAdapter", "PAG文件检查 - 存在: " + pagFile.exists() +
+                            ", 可读: " + pagFile.canRead() +
+                            ", 大小: " + pagFile.length());
+
+                    if (pagFile.exists() && pagFile.canRead()) {
+                        // 停止之前的动画
+                        pagView.stop();
+
+                        // 设置PAG文件路径
                         pagView.setPath(filePath);
+
+                        // 设置循环播放
                         pagView.setRepeatCount(-1); // 无限循环
+
+                        // 开始播放
                         pagView.play();
+
+                        Log.d("ImagePagerAdapter", "✅ PAG文件加载成功: " + filePath);
+
+                        // 添加播放状态监听
+                        pagView.addListener(new PAGView.PAGViewListener() {
+                            @Override
+                            public void onAnimationStart(PAGView view) {
+                                Log.d("ImagePagerAdapter", "PAG动画开始播放");
+                            }
+
+                            @Override
+                            public void onAnimationEnd(PAGView view) {
+                                Log.d("ImagePagerAdapter", "PAG动画播放结束");
+                            }
+
+                            @Override
+                            public void onAnimationCancel(PAGView view) {
+                                Log.d("ImagePagerAdapter", "PAG动画取消");
+                            }
+
+                            @Override
+                            public void onAnimationRepeat(PAGView view) {
+                                Log.d("ImagePagerAdapter", "PAG动画重复播放");
+                            }
+
+                            @Override
+                            public void onAnimationUpdate(PAGView pagView) {
+                                Log.d("ImagePagerAdapter", "onAnimationUpdate");
+                            }
+                        });
+
+                    } else {
+                        Log.e("ImagePagerAdapter", "❌ PAG文件不可访问: " + filePath);
+                        tvType.setText("PAG文件不可访问");
                     }
-                } else if (item.isFromLocal()) {
-                    // 本地资源的PAG文件处理
-                    // 需要根据实际情况实现
+                } else {
+                    Log.e("ImagePagerAdapter", "❌ PAG文件路径为null");
+                    tvType.setText("PAG文件路径错误");
                 }
             } catch (Exception e) {
+                Log.e("ImagePagerAdapter", "❌ PAG加载异常: " + e.getMessage());
                 e.printStackTrace();
-                tvType.setText("PAG加载失败");
+                tvType.setText("PAG加载失败: " + e.getMessage());
             }
         }
-        
-        public void releasePag() {
-            if (pagView != null) {
-                pagView.stop();
-                pagView.freeCache();
-            }
         }
-    }
-    
-    @Override
-    public void onViewRecycled(@NonNull ViewHolder holder) {
-        super.onViewRecycled(holder);
-        holder.releasePag();
-    }
 }

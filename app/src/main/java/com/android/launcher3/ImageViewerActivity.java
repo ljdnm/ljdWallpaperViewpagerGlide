@@ -10,11 +10,14 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.android.launcher3.wallpaper.AllFilesAccessHelper;
+import com.android.launcher3.wallpaper.FileSearchHelper;
 import com.android.launcher3.wallpaper.ImageItem;
 import com.android.launcher3.wallpaper.ImagePagerAdapter;
 import com.android.launcher3.wallpaper.MediaStoreHelper;
 import com.android.launcher3.wallpaper.PermissionHelper;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,16 +36,10 @@ public class ImageViewerActivity extends AppCompatActivity {
     
     private int currentPosition = 0;
     
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_image_viewer);
-        
-        initViews();
-        checkPermissionsAndLoad();
-        setupListeners();
-    }
+
     private void setupListeners() {
+        Button btnPagDebug = findViewById(R.id.btnPagDebug);
+        btnPagDebug.setOnClickListener(v -> runDetailedPagDebug());
         btnDelete.setOnClickListener(v -> {
             showDeleteConfirmDialog(currentPosition);
         });
@@ -54,33 +51,21 @@ public class ImageViewerActivity extends AppCompatActivity {
         // 添加调试按钮
         Button btnDebug = findViewById(R.id.btnDebug);
         btnDebug.setOnClickListener(v -> {
-            runDebugTests();
+//            runDebugTests();
         });
-    }
 
-    private void runDebugTests() {
-        new Thread(() -> {
-            Log.d(TAG, "=== 开始调试测试 ===");
-
-            // 测试MediaStore访问
-            MediaStoreHelper.testMediaStoreAccess(this);
-
-            // 测试特定目录访问
-            List<ImageItem> testFiles = MediaStoreHelper.loadImagesFromSpecificDirectory(this, "LionWallpaper");
-            Log.d(TAG, "LionWallpaper目录文件数: " + testFiles.size());
-
-            // 测试所有图片访问
-            List<ImageItem> allFiles = MediaStoreHelper.loadAllImages(this);
-            Log.d(TAG, "所有图片文件数: " + allFiles.size());
-
-            runOnUiThread(() -> {
+        // 添加权限状态检查按钮
+        Button btnCheckPermission = findViewById(R.id.btnCheckPermission);
+        if (btnCheckPermission != null) {
+            btnCheckPermission.setOnClickListener(v -> {
+                updatePermissionStatus();
                 Toast.makeText(this,
-                        "调试完成，查看Logcat\nLionWallpaper: " + testFiles.size() +
-                                "个\n总图片: " + allFiles.size() + "个",
-                        Toast.LENGTH_LONG).show();
+                        "权限状态: " + (AllFilesAccessHelper.hasAllFilesAccessPermission() ? "全权限" : "受限"),
+                        Toast.LENGTH_SHORT).show();
             });
-        }).start();
+        }
     }
+
     private void initViews() {
         viewPager = findViewById(R.id.viewPager);
         tvCurrentPosition = findViewById(R.id.tvCurrentPosition);
@@ -138,25 +123,7 @@ public class ImageViewerActivity extends AppCompatActivity {
             imageList.add(item);
         }
     }
-    private void addMediaStoreFiles() {
-        // 方法1：尝试从特定目录加载
-        Log.d(TAG, "尝试从 LionWallpaper 目录加载文件...");
-        List<ImageItem> specificFiles = MediaStoreHelper.loadImagesFromSpecificDirectory(this, "LionWallpaper");
 
-        if (!specificFiles.isEmpty()) {
-            imageList.addAll(specificFiles);
-            Log.d(TAG, "从 LionWallpaper 目录成功加载 " + specificFiles.size() + " 个文件");
-            return;
-        }
-
-        // 方法2：如果特定目录没找到，加载所有图片
-        Log.d(TAG, "特定目录未找到文件，尝试加载所有图片...");
-        List<ImageItem> allFiles = MediaStoreHelper.loadAllImages(this);
-        imageList.addAll(allFiles);
-
-        // 方法3：测试MediaStore访问
-        MediaStoreHelper.testMediaStoreAccess(this);
-    }
 
     // 在 loadAllData() 方法中添加调试信息
     private void loadAllData() {
@@ -174,6 +141,7 @@ public class ImageViewerActivity extends AppCompatActivity {
         Log.d(TAG, "总共: " + imageList.size() + " 个文件");
         Log.d(TAG, "媒体库文件: " + getSdcardCount() + " 个");
         Log.d(TAG, "本地资源: " + getLocalCount() + " 个");
+        updatePermissionStatus(); // 添加这里
 
         // 显示详细的文件列表
         for (int i = 0; i < imageList.size(); i++) {
@@ -203,7 +171,7 @@ public class ImageViewerActivity extends AppCompatActivity {
             Toast.makeText(this, "没有存储权限", Toast.LENGTH_SHORT).show();
             return;
         }
-        
+        updatePermissionStatus();
         // 移除现有的媒体库文件，保留本地资源
         List<ImageItem> localItems = new ArrayList<>();
         for (ImageItem item : imageList) {
@@ -371,5 +339,221 @@ public class ImageViewerActivity extends AppCompatActivity {
         if (adapter != null) {
             adapter = null;
         }
+    }
+
+
+//    private void runPagDebugTests() {
+//        new Thread(() -> {
+//            Log.d(TAG, "=== 增强PAG文件调试测试 ===");
+//
+//            // 全面搜索PAG文件
+//            List<ImageItem> pagFiles = FileSearchHelper.searchPagFiles();
+//
+//            runOnUiThread(() -> {
+//                String message = "PAG文件搜索完成\n" +
+//                        "找到: " + pagFiles.size() + " 个PAG文件\n" +
+//                        "查看Logcat获取文件位置";
+//                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+//
+//                // 如果找到了PAG文件，立即加载
+//                if (!pagFiles.isEmpty()) {
+//                    imageList.addAll(pagFiles);
+//                    if (adapter != null) {
+//                        adapter.updateData(imageList);
+//                        updatePositionInfo();
+//                        updateFileInfo();
+//                    }
+//                }
+//            });
+//        }).start();
+//    }
+    private void runDetailedPagDebug() {
+        new Thread(() -> {
+            Log.d(TAG, "=== 详细PAG文件调试 ===");
+
+            // 测试已知文件
+            List<ImageItem> knownFiles = FileSearchHelper.loadKnownPagFiles();
+
+            // 测试目录扫描
+            List<ImageItem> scannedFiles = FileSearchHelper.scanPagFiles();
+
+            // 测试文件权限
+            String[] testFiles = {
+                    "/storage/emulated/0/Download/LionWallpaper/blue_bmp.pag",
+                    "/storage/emulated/0/Download/LionWallpaper/red_bmp.pag",
+                    "/storage/emulated/0/Download/LionWallpaper/test.pag",
+                    "/storage/emulated/0/Download/LionWallpaper/white_bmp.pag"
+            };
+
+            for (String filePath : testFiles) {
+                File file = new File(filePath);
+                Log.d(TAG, "文件权限测试: " + filePath);
+                Log.d(TAG, "  存在: " + file.exists());
+                Log.d(TAG, "  可读: " + file.canRead());
+                Log.d(TAG, "  可写: " + file.canWrite());
+                Log.d(TAG, "  可执行: " + file.canExecute());
+                Log.d(TAG, "  大小: " + file.length());
+                Log.d(TAG, "  路径: " + file.getAbsolutePath());
+            }
+
+            runOnUiThread(() -> {
+                String message = "PAG调试完成\n" +
+                        "已知文件: " + knownFiles.size() + " 个\n" +
+                        "扫描文件: " + scannedFiles.size() + " 个\n" +
+                        "查看Logcat获取详细信息";
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+
+                // 立即加载找到的PAG文件
+                if (!knownFiles.isEmpty()) {
+                    imageList.addAll(knownFiles);
+                    if (adapter != null) {
+                        adapter.updateData(imageList);
+                        updatePositionInfo();
+                        updateFileInfo();
+                        Toast.makeText(this, "已加载 " + knownFiles.size() + " 个PAG文件", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+        }).start();
+    }
+    private void addMediaStoreFiles() {
+        // 方法1：尝试从特定目录加载图片
+        Log.d(TAG, "尝试从 LionWallpaper 目录加载图片文件...");
+        List<ImageItem> specificFiles = MediaStoreHelper.loadImagesFromSpecificDirectory(this, "LionWallpaper");
+
+        if (!specificFiles.isEmpty()) {
+            imageList.addAll(specificFiles);
+            Log.d(TAG, "从 LionWallpaper 目录成功加载 " + specificFiles.size() + " 个图片文件");
+        }
+
+        // 方法2：直接加载已知的PAG文件
+        Log.d(TAG, "直接加载已知PAG文件...");
+        List<ImageItem> knownPagFiles = FileSearchHelper.loadKnownPagFiles();
+
+        if (!knownPagFiles.isEmpty()) {
+            imageList.addAll(knownPagFiles);
+            Log.d(TAG, "成功加载 " + knownPagFiles.size() + " 个已知PAG文件");
+        } else {
+            Log.w(TAG, "已知PAG文件加载失败，尝试扫描...");
+
+            // 方法3：扫描目录
+            List<ImageItem> scannedPagFiles = FileSearchHelper.scanPagFiles();
+            if (!scannedPagFiles.isEmpty()) {
+                imageList.addAll(scannedPagFiles);
+                Log.d(TAG, "扫描找到 " + scannedPagFiles.size() + " 个PAG文件");
+            }
+        }
+    }
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_image_viewer);
+
+        initViews();
+        checkAllFilesAccessPermission();
+        setupListeners();
+        updatePermissionStatus();
+    }
+
+    private void checkAllFilesAccessPermission() {
+        if (AllFilesAccessHelper.hasAllFilesAccessPermission()) {
+            // 有所有文件权限，可以加载PAG文件
+            loadAllData();
+        } else {
+            // 请求所有文件权限
+            showAllFilesAccessDialog();
+        }
+        updatePermissionStatus(); // 添加这里
+    }
+
+//    private void showAllFilesAccessDialog() {
+//        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+//        builder.setTitle("需要所有文件访问权限")
+//                .setMessage("为了加载PAG动画文件，需要授予应用\"所有文件访问\"权限。\n\n" +
+//                        "请在接下来的设置页面中开启\"允许访问所有文件\"选项。\n\n" +
+//                        "PNG/JPG文件可以正常显示，但PAG文件需要此额外权限。")
+//                .setPositiveButton("去设置", (dialog, which) -> {
+//                    AllFilesAccessHelper.requestAllFilesAccessPermission(this);
+//                })
+//                .setNegativeButton("仅加载图片", (dialog, which) -> {
+//                    loadImagesOnly();
+//                })
+//                .setCancelable(false)
+//                .show();
+//    }
+
+    private void loadImagesOnly() {
+        imageList = new ArrayList<>();
+
+        // 添加本地资源
+        addLocalResources();
+
+        // 只加载图片文件（不需要所有文件权限）
+        addMediaStoreImages();
+
+        setupViewPager();
+
+        Toast.makeText(this, "已加载 " + imageList.size() + " 个图片文件", Toast.LENGTH_SHORT).show();
+    }
+
+    private void addMediaStoreImages() {
+        // 只加载通过MediaStore可访问的图片
+        List<ImageItem> imageFiles = MediaStoreHelper.loadImagesFromSpecificDirectory(this, "LionWallpaper");
+        imageList.addAll(imageFiles);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 检查用户是否从设置页面返回并授予了权限
+        if (AllFilesAccessHelper.hasAllFilesAccessPermission()) {
+            // 重新加载数据，包括PAG文件
+            loadAllData();
+            Toast.makeText(this, "所有文件访问权限已开启", Toast.LENGTH_SHORT).show();
+        }
+        updatePermissionStatus();
+    }
+
+
+    private void updatePermissionStatus() {
+        TextView tvPermissionStatus = findViewById(R.id.tvPermissionStatus);
+        if (tvPermissionStatus == null) return;
+
+        if (AllFilesAccessHelper.hasAllFilesAccessPermission()) {
+            tvPermissionStatus.setText("全权限");
+            tvPermissionStatus.setTextColor(getColor(android.R.color.holo_green_dark));
+            tvPermissionStatus.setBackgroundColor(getColor(android.R.color.transparent));
+        } else {
+            tvPermissionStatus.setText("受限");
+            tvPermissionStatus.setTextColor(getColor(android.R.color.holo_red_dark));
+            tvPermissionStatus.setBackgroundColor(0x22FF0000); // 浅红色背景
+        }
+
+        Log.d(TAG, "权限状态更新: " +
+                (AllFilesAccessHelper.hasAllFilesAccessPermission() ? "全权限" : "受限"));
+    }
+    private void showAllFilesAccessDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("需要所有文件访问权限")
+                .setMessage("为了加载PAG动画文件，需要授予应用\"所有文件访问\"权限。\n\n" +
+                        "请在接下来的设置页面中开启\"允许访问所有文件\"选项。\n\n" +
+                        "PNG/JPG文件可以正常显示，但PAG文件需要此额外权限。")
+                .setPositiveButton("去设置", (dialog, which) -> {
+                    AllFilesAccessHelper.requestAllFilesAccessPermission(this);
+                    updatePermissionStatus(); // 添加这里
+                })
+                .setNegativeButton("仅加载图片", (dialog, which) -> {
+                    loadImagesOnly();
+                    updatePermissionStatus(); // 添加这里
+                })
+                .setCancelable(false)
+                .show();
+    }
+    // 在权限请求后的回调中也调用
+    private void onAllFilesPermissionGranted() {
+        updatePermissionStatus();
+        loadAllData();
     }
 }

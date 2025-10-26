@@ -13,13 +13,44 @@
         android:background="#33000000"
         android:padding="16dp"
         android:orientation="horizontal">
+        <TextView
+            android:id="@+id/tvCurrentPosition"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
 
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:text="0 / 0" />
+        <Button
+            android:id="@+id/btnPagDebug"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PAG调试"
+            android:layout_marginEnd="2dp"
+            android:backgroundTint="#FF5722"
+            android:textColor="@android:color/white" />
+        <TextView
+            android:id="@+id/tvPermissionStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="权限状态"
+            android:textColor="#FF9800"
+            android:textSize="12sp"
+            android:layout_marginEnd="8dp" />
+        <Button
+            android:id="@+id/btnCheckPermission"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="检查权限"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="#795548"
+            android:textColor="@android:color/white" />
         <Button
             android:id="@+id/btnDebug"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="调试"
-            android:layout_marginEnd="8dp"
+            android:layout_marginEnd="2dp"
             android:backgroundTint="#FF9800"
             android:textColor="@android:color/white" />
         <Button
@@ -27,17 +58,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="重新加载"
-            android:layout_marginEnd="8dp"
+            android:layout_marginEnd="2dp"
             android:backgroundTint="#2196F3"
             android:textColor="@android:color/white" />
-        <TextView
-            android:id="@+id/tvCurrentPosition"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:text="0 / 0" />
+
 
         <Button
             android:id="@+id/btnDelete"

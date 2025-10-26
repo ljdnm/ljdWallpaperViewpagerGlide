@@ -16,16 +16,7 @@ public class ImageItem {
     private String title;
     private Integer resourceId;
     private int source;
-    
-    // SDCard文件构造方法（带URI）
-    public ImageItem(String filePath, Uri fileUri, String title, int source) {
-        this.filePath = filePath;
-        this.fileUri = fileUri;
-        this.title = title;
-        this.type = getFileType(filePath);
-        this.source = source;
-        this.resourceId = null;
-    }
+
     
     // 本地资源构造方法
     public ImageItem(int resourceId, String title, boolean isPag) {
@@ -36,7 +27,36 @@ public class ImageItem {
         this.filePath = null;
         this.fileUri = null;
     }
-    
+
+    // 添加SDCard文件构造方法（只有文件路径）
+    public ImageItem(String filePath, String title) {
+        this.filePath = filePath;
+        this.title = title;
+        this.type = getFileType(filePath);
+        this.source = SOURCE_SDCARD;
+        this.fileUri = null;
+        this.resourceId = null;
+    }
+
+    // 或者使用现有的构造方法，但需要调整参数
+    public ImageItem(String filePath, Uri fileUri, String title, int source) {
+        this.filePath = filePath;
+        this.fileUri = fileUri;
+        this.title = title;
+        this.type = getFileType(filePath);
+        this.source = source;
+        this.resourceId = null;
+    }
+
+    // 添加一个便捷方法用于创建SDCard项目
+    public static ImageItem createSdcardItem(String filePath) {
+        return new ImageItem(filePath, new File(filePath).getName());
+    }
+
+    // 或者使用URI创建
+    public static ImageItem createSdcardItemWithUri(String filePath, Uri uri) {
+        return new ImageItem(filePath, uri, new File(filePath).getName(), SOURCE_SDCARD);
+    }
     public static int getFileType(String filePath) {
         if (filePath != null && filePath.toLowerCase().endsWith(".pag")) {
             return TYPE_PAG;

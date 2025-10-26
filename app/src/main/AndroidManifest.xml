@@ -10,7 +10,10 @@
     <!-- Android 10-12 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-
+    <!-- 如果使用递归搜索可能需要这个权限 -->
+<!--    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"-->
+<!--        android:minSdkVersion="30" />-->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <application
