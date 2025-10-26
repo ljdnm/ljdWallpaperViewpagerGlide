@@ -71,7 +71,7 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
     public int getItemCount() {
         return imageList.size();
     }
-    
+
     public class ViewHolder extends RecyclerView.ViewHolder {
         ImageView imageView;
         TextView tvTitle;
@@ -149,6 +149,8 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
             loadPagAnimation(item);
         }
 
+
+
         private void loadPagAnimation(ImageItem item) {
             if (pagView == null) {
                 Log.e("ImagePagerAdapter", "PAGView为null");
@@ -156,62 +158,26 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
             }
 
             try {
-                String filePath = item.getFilePath();
-                Log.d("ImagePagerAdapter", "开始加载PAG文件: " + filePath);
+                String pagPath = item.getPagFilePath();
+                Log.d("ImagePagerAdapter", "开始加载PAG文件，来源: " +
+                        (item.isFromSDCard() ? "SDCard" : item.isFromAssets() ? "Assets" : "未知") +
+                        ", 路径: " + pagPath);
 
-                if (filePath != null) {
-                    File pagFile = new File(filePath);
-                    Log.d("ImagePagerAdapter", "PAG文件检查 - 存在: " + pagFile.exists() +
-                            ", 可读: " + pagFile.canRead() +
-                            ", 大小: " + pagFile.length());
+                if (pagPath != null) {
+                    // 停止之前的动画
+                    pagView.stop();
 
-                    if (pagFile.exists() && pagFile.canRead()) {
-                        // 停止之前的动画
-                        pagView.stop();
+                    // 设置PAG文件路径（PAG库会自动处理assets://前缀）
+                    pagView.setPath(pagPath);
 
-                        // 设置PAG文件路径
-                        pagView.setPath(filePath);
+                    // 设置循环播放
+                    pagView.setRepeatCount(-1); // 无限循环
 
-                        // 设置循环播放
-                        pagView.setRepeatCount(-1); // 无限循环
+                    // 开始播放
+                    pagView.play();
 
-                        // 开始播放
-                        pagView.play();
+                    Log.d("ImagePagerAdapter", "✅ PAG文件加载成功: " + pagPath);
 
-                        Log.d("ImagePagerAdapter", "✅ PAG文件加载成功: " + filePath);
-
-                        // 添加播放状态监听
-                        pagView.addListener(new PAGView.PAGViewListener() {
-                            @Override
-                            public void onAnimationStart(PAGView view) {
-                                Log.d("ImagePagerAdapter", "PAG动画开始播放");
-                            }
-
-                            @Override
-                            public void onAnimationEnd(PAGView view) {
-                                Log.d("ImagePagerAdapter", "PAG动画播放结束");
-                            }
-
-                            @Override
-                            public void onAnimationCancel(PAGView view) {
-                                Log.d("ImagePagerAdapter", "PAG动画取消");
-                            }
-
-                            @Override
-                            public void onAnimationRepeat(PAGView view) {
-                                Log.d("ImagePagerAdapter", "PAG动画重复播放");
-                            }
-
-                            @Override
-                            public void onAnimationUpdate(PAGView pagView) {
-                                Log.d("ImagePagerAdapter", "onAnimationUpdate");
-                            }
-                        });
-
-                    } else {
-                        Log.e("ImagePagerAdapter", "❌ PAG文件不可访问: " + filePath);
-                        tvType.setText("PAG文件不可访问");
-                    }
                 } else {
                     Log.e("ImagePagerAdapter", "❌ PAG文件路径为null");
                     tvType.setText("PAG文件路径错误");

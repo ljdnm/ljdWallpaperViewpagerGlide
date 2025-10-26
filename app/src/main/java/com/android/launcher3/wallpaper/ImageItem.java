@@ -9,14 +9,36 @@ public class ImageItem {
     
     public static final int SOURCE_SDCARD = 0;
     public static final int SOURCE_LOCAL = 1;
-    
+    public static final int SOURCE_ASSETS = 2; // 新增assets来源
     private String filePath;
     private Uri fileUri;
     private int type;
     private String title;
     private Integer resourceId;
     private int source;
+    private String assetsPath; // 新增assets路径字段
 
+    // SDCard文件构造方法
+    public ImageItem(String filePath, String title) {
+        this.filePath = filePath;
+        this.title = title;
+        this.type = getFileType(filePath);
+        this.source = SOURCE_SDCARD;
+        this.fileUri = null;
+        this.resourceId = null;
+        this.assetsPath = null;
+    }
+
+    // Assets文件构造方法
+    public ImageItem(String assetsPath, String title, boolean isPag) {
+        this.assetsPath = assetsPath;
+        this.title = title;
+        this.type = isPag ? TYPE_PAG : TYPE_IMAGE;
+        this.source = SOURCE_ASSETS;
+        this.filePath = null;
+        this.fileUri = null;
+        this.resourceId = null;
+    }
     
     // 本地资源构造方法
     public ImageItem(int resourceId, String title, boolean isPag) {
@@ -28,15 +50,7 @@ public class ImageItem {
         this.fileUri = null;
     }
 
-    // 添加SDCard文件构造方法（只有文件路径）
-    public ImageItem(String filePath, String title) {
-        this.filePath = filePath;
-        this.title = title;
-        this.type = getFileType(filePath);
-        this.source = SOURCE_SDCARD;
-        this.fileUri = null;
-        this.resourceId = null;
-    }
+
 
     // 或者使用现有的构造方法，但需要调整参数
     public ImageItem(String filePath, Uri fileUri, String title, int source) {
@@ -77,18 +91,34 @@ public class ImageItem {
     public boolean isResource() { return resourceId != null; }
     public boolean isFromSDCard() { return source == SOURCE_SDCARD; }
     public boolean isFromLocal() { return source == SOURCE_LOCAL; }
-    
+
+    public boolean isFromAssets() { return source == SOURCE_ASSETS; } // 新增
+
     /**
-     * 获取用于Glide加载的源（优先使用Content URI）
+     * 获取用于Glide加载的源
      */
     public Object getGlideSource() {
         if (isResource()) {
             return resourceId;
         } else if (hasUri()) {
-            return fileUri;  // 使用Content URI，这是Android 11+推荐的方式
+            return fileUri;
         } else if (filePath != null) {
-            return getFile(); // 备用方案
+            return getFile();
+        }
+        // assets文件Glide无法直接加载，需要特殊处理
+        return null;
+    }
+
+    /**
+     * 获取PAG文件路径（统一处理不同来源）
+     */
+    public String getPagFilePath() {
+        if (isFromSDCard()) {
+            return filePath;
+        } else if (isFromAssets()) {
+            return "assets://" + assetsPath; // PAG库需要的格式
         }
         return null;
     }
+
 }
