@@ -48,6 +48,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- 注册壁纸广播接收器 -->
+        <receiver
+            android:name=".wallpaper.WallpaperBroadcastReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.lion.launcher.action.switch_wallpaper_mode" />
+                <action android:name="com.lion.themeshop.action.set_wallpaper" />
+                <action android:name="com.lion.themeshop.action.delete_wallpaper" />
+                <action android:name="com.lion.ac.action.status_changed" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

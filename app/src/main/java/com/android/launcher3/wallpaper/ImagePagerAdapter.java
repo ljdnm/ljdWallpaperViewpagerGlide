@@ -19,6 +19,8 @@ import java.io.File;
 import java.util.List;
 
 public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.ViewHolder> {
+
+    String TAG = "ljd ImagePagerAdapter";
     private Context context;
     private List<ImageItem> imageList;
     private OnItemClickListener onItemClickListener;
@@ -37,11 +39,22 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
         this.onItemClickListener = listener;
     }
     
-    public void updateData(List<ImageItem> newImageList) {
-        this.imageList = newImageList;
-        notifyDataSetChanged();
-    }
-    
+//    public void updateData(List<ImageItem> newImageList) {
+//        this.imageList = newImageList;
+//        notifyDataSetChanged();
+//    }
+public void updateData(List<ImageItem> newImageList) {
+    Log.d(TAG, "updateData: 更新数据，旧数量=" +
+            (this.imageList != null ? this.imageList.size() : "null") +
+            ", 新数量=" + newImageList.size());
+
+    this.imageList = newImageList;
+    notifyDataSetChanged();
+
+    // 添加调试信息
+
+    Log.d(TAG, "适配器通知数据变化完成，当前项目数=" + getItemCount());
+}
     public void removeItem(int position) {
         if (position >= 0 && position < imageList.size()) {
             imageList.remove(position);
@@ -153,13 +166,13 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
 
         private void loadPagAnimation(ImageItem item) {
             if (pagView == null) {
-                Log.e("ImagePagerAdapter", "PAGView为null");
+                Log.e(TAG, "PAGView为null");
                 return;
             }
 
             try {
                 String pagPath = item.getPagFilePath();
-                Log.d("ImagePagerAdapter", "开始加载PAG文件，来源: " +
+                Log.d(TAG, "开始加载PAG文件，来源: " +
                         (item.isFromSDCard() ? "SDCard" : item.isFromAssets() ? "Assets" : "未知") +
                         ", 路径: " + pagPath);
 
@@ -176,14 +189,14 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
                     // 开始播放
                     pagView.play();
 
-                    Log.d("ImagePagerAdapter", "✅ PAG文件加载成功: " + pagPath);
+                    Log.d(TAG, "✅ PAG文件加载成功: " + pagPath);
 
                 } else {
-                    Log.e("ImagePagerAdapter", "❌ PAG文件路径为null");
+                    Log.e(TAG, "❌ PAG文件路径为null");
                     tvType.setText("PAG文件路径错误");
                 }
             } catch (Exception e) {
-                Log.e("ImagePagerAdapter", "❌ PAG加载异常: " + e.getMessage());
+                Log.e(TAG, "❌ PAG加载异常: " + e.getMessage());
                 e.printStackTrace();
                 tvType.setText("PAG加载失败: " + e.getMessage());
             }

@@ -1,6 +1,8 @@
 package com.android.launcher3.wallpaper;
 
 import android.net.Uri;
+import android.util.Log;
+
 import java.io.File;
 
 public class ImageItem {
@@ -97,18 +99,38 @@ public class ImageItem {
     /**
      * 获取用于Glide加载的源
      */
+//    public Object getGlideSource() {
+//        if (isResource()) {
+//            return resourceId;
+//        } else if (hasUri()) {
+//            return fileUri;
+//        } else if (filePath != null) {
+//            return getFile();
+//        }
+//        // assets文件Glide无法直接加载，需要特殊处理
+//        return null;
+//    }
+    /**
+     * 获取用于Glide加载的源
+     */
     public Object getGlideSource() {
         if (isResource()) {
+            Log.d("ljd ImageItem", "使用资源ID: " + resourceId);
             return resourceId;
         } else if (hasUri()) {
+            Log.d("ljd ImageItem", "使用URI: " + fileUri);
             return fileUri;
         } else if (filePath != null) {
-            return getFile();
+            Log.d("ljd ImageItem", "使用文件路径: " + filePath);
+            return new File(filePath);
+        } else if (isFromAssets()) {
+            Log.d("ljd ImageItem", "Assets文件，Glide无法直接加载: " + assetsPath);
+            // Assets文件需要特殊处理，返回null让Glide显示占位符
+            return null;
         }
-        // assets文件Glide无法直接加载，需要特殊处理
+        Log.d("ljd ImageItem", "无可用Glide源");
         return null;
     }
-
 
     /**
      * 获取Assets路径（如果是从Assets加载）

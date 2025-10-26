@@ -1,5 +1,6 @@
 package com.android.launcher3;
 
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -8,6 +9,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.android.launcher3.wallpaper.AllFilesAccessHelper;
@@ -18,6 +20,9 @@ import com.android.launcher3.wallpaper.ImagePagerAdapter;
 import com.android.launcher3.wallpaper.MediaStoreHelper;
 import com.android.launcher3.wallpaper.PermissionHelper;
 import com.android.launcher3.wallpaper.SpecifiedFileManager;
+import com.android.launcher3.wallpaper.WallpaperBroadcastReceiver;
+import com.android.launcher3.wallpaper.WallpaperManager;
+import com.android.launcher3.wallpaper.WallpaperType;
 
 import java.io.File;
 import java.io.IOException;
@@ -74,31 +79,6 @@ public class ImageViewerActivity extends AppCompatActivity {
             .setCancelable(false)
             .show();
     }
-    
-
-    
-//    private void addLocalResources() {
-//        // 添加本地PNG资源
-//        int[] pngResources = {
-//            R.drawable.jtbz_zrsg_alphelia,
-//            R.drawable.jtbz_zrsg_crimsono,
-//            R.drawable.jtbz_zrsg_equinoxis,
-//            R.drawable.jtbz_zrsg_harmonia,
-//            R.drawable.jtbz_zrsg_thalassa,
-//            R.drawable.jtbz_zrsg_zephyria
-//        };
-//
-//        String[] pngNames = {
-//            "阿尔菲莉亚", "克里姆森", "伊奎诺克西斯",
-//            "哈莫尼亚", "塔拉萨", "泽菲莉亚"
-//        };
-//
-//        for (int i = 0; i < pngResources.length; i++) {
-//            ImageItem item = new ImageItem(pngResources[i], pngNames[i], false);
-//            imageList.add(item);
-//        }
-//    }
-
 
     
     private void loadLocalResourcesOnly() {
@@ -107,41 +87,7 @@ public class ImageViewerActivity extends AppCompatActivity {
         setupViewPager();
         Toast.makeText(this, "已加载 " + imageList.size() + " 个内置资源", Toast.LENGTH_SHORT).show();
     }
-    
-//    private void reloadMediaFiles() {
-//        if (!PermissionHelper.hasStoragePermission(this)) {
-//            Toast.makeText(this, "没有存储权限", Toast.LENGTH_SHORT).show();
-//            return;
-//        }
-//        updatePermissionStatus();
-//        // 移除现有的媒体库文件，保留本地资源
-//        List<ImageItem> localItems = new ArrayList<>();
-//        for (ImageItem item : imageList) {
-//            if (item.isFromLocal()) {
-//                localItems.add(item);
-//            }
-//        }
-//
-//        imageList = localItems;
-//        addMediaStoreFiles();
-//
-//        if (adapter != null) {
-//            adapter.updateData(imageList);
-//
-//            // 重置到第一页
-//            if (!imageList.isEmpty()) {
-//                viewPager.setCurrentItem(0, false);
-//                currentPosition = 0;
-//            }
-//
-//            updatePositionInfo();
-//            updateFileInfo();
-//        }
-//
-//        Toast.makeText(this, "重新加载完成，媒体库文件: " + getSdcardCount() + " 个",
-//                     Toast.LENGTH_SHORT).show();
-//    }
-    
+
     private int getSdcardCount() {
         int count = 0;
         for (ImageItem item : imageList) {
@@ -157,24 +103,47 @@ public class ImageViewerActivity extends AppCompatActivity {
         }
         return count;
     }
-    
     private void setupViewPager() {
+        Log.d(TAG, "setupViewPager: 开始设置适配器，数据数量: " + imageList.size());
+
         adapter = new ImagePagerAdapter(this, imageList);
-        
+
+        // 添加适配器数据变化监听
+        adapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+            @Override
+            public void onChanged() {
+                super.onChanged();
+                Log.d(TAG, "适配器数据变化，当前数量: " + adapter.getItemCount());
+            }
+
+            @Override
+            public void onItemRangeInserted(int positionStart, int itemCount) {
+                super.onItemRangeInserted(positionStart, itemCount);
+                Log.d(TAG, "适配器插入项目: 位置 " + positionStart + ", 数量 " + itemCount);
+            }
+        });
+
         adapter.setOnItemClickListener(new ImagePagerAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(int position) {
                 toggleInfoVisibility();
             }
-            
+
             @Override
             public void onItemLongClick(int position) {
                 showDeleteConfirmDialog(position);
             }
         });
-        
+
         viewPager.setAdapter(adapter);
-        
+
+        // 检查ViewPager状态
+        viewPager.post(() -> {
+            Log.d(TAG, "ViewPager状态 - 宽度: " + viewPager.getWidth() +
+                    ", 高度: " + viewPager.getHeight() +
+                    ", 可见性: " + viewPager.getVisibility());
+        });
+
         viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
@@ -182,12 +151,51 @@ public class ImageViewerActivity extends AppCompatActivity {
                 currentPosition = position;
                 updatePositionInfo();
                 updateFileInfo();
+                Log.d(TAG, "页面切换至: " + position);
+            }
+
+            @Override
+            public void onPageScrollStateChanged(int state) {
+                super.onPageScrollStateChanged(state);
+                Log.d(TAG, "页面滚动状态: " + state);
             }
         });
-        
+
         updatePositionInfo();
         updateFileInfo();
+
+        Log.d(TAG, "setupViewPager: 适配器设置完成");
     }
+//    private void setupViewPager() {
+//        adapter = new ImagePagerAdapter(this, imageList);
+//
+//        adapter.setOnItemClickListener(new ImagePagerAdapter.OnItemClickListener() {
+//            @Override
+//            public void onItemClick(int position) {
+//                toggleInfoVisibility();
+//            }
+//
+//            @Override
+//            public void onItemLongClick(int position) {
+//                showDeleteConfirmDialog(position);
+//            }
+//        });
+//
+//        viewPager.setAdapter(adapter);
+//
+//        viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+//            @Override
+//            public void onPageSelected(int position) {
+//                super.onPageSelected(position);
+//                currentPosition = position;
+//                updatePositionInfo();
+//                updateFileInfo();
+//            }
+//        });
+//
+//        updatePositionInfo();
+//        updateFileInfo();
+//    }
     
 
     
@@ -284,40 +292,7 @@ public class ImageViewerActivity extends AppCompatActivity {
         }
     }
     
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (adapter != null) {
-            adapter = null;
-        }
-    }
 
-
-//    private void runPagDebugTests() {
-//        new Thread(() -> {
-//            Log.d(TAG, "=== 增强PAG文件调试测试 ===");
-//
-//            // 全面搜索PAG文件
-//            List<ImageItem> pagFiles = FileSearchHelper.searchPagFiles();
-//
-//            runOnUiThread(() -> {
-//                String message = "PAG文件搜索完成\n" +
-//                        "找到: " + pagFiles.size() + " 个PAG文件\n" +
-//                        "查看Logcat获取文件位置";
-//                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-//
-//                // 如果找到了PAG文件，立即加载
-//                if (!pagFiles.isEmpty()) {
-//                    imageList.addAll(pagFiles);
-//                    if (adapter != null) {
-//                        adapter.updateData(imageList);
-//                        updatePositionInfo();
-//                        updateFileInfo();
-//                    }
-//                }
-//            });
-//        }).start();
-//    }
     private void runDetailedPagDebug() {
         new Thread(() -> {
             Log.d(TAG, "=== 详细PAG文件调试 ===");
@@ -367,46 +342,7 @@ public class ImageViewerActivity extends AppCompatActivity {
             });
         }).start();
     }
-//    private void addMediaStoreFiles() {
-//        // 方法1：尝试从特定目录加载图片
-//        Log.d(TAG, "尝试从 LionWallpaper 目录加载图片文件...");
-//        List<ImageItem> specificFiles = MediaStoreHelper.loadImagesFromSpecificDirectory(this, "LionWallpaper");
-//
-//        if (!specificFiles.isEmpty()) {
-//            imageList.addAll(specificFiles);
-//            Log.d(TAG, "从 LionWallpaper 目录成功加载 " + specificFiles.size() + " 个图片文件");
-//        }
-//
-//        // 方法2：直接加载已知的PAG文件
-//        Log.d(TAG, "直接加载已知PAG文件...");
-//        List<ImageItem> knownPagFiles = FileSearchHelper.loadKnownPagFiles();
-//
-//        if (!knownPagFiles.isEmpty()) {
-//            imageList.addAll(knownPagFiles);
-//            Log.d(TAG, "成功加载 " + knownPagFiles.size() + " 个已知PAG文件");
-//        } else {
-//            Log.w(TAG, "已知PAG文件加载失败，尝试扫描...");
-//
-//            // 方法3：扫描目录
-//            List<ImageItem> scannedPagFiles = FileSearchHelper.scanPagFiles();
-//            if (!scannedPagFiles.isEmpty()) {
-//                imageList.addAll(scannedPagFiles);
-//                Log.d(TAG, "扫描找到 " + scannedPagFiles.size() + " 个PAG文件");
-//            }
-//        }
-//    }
 
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_image_viewer);
-
-        initViews();
-        checkAllFilesAccessPermission();
-        setupListeners();
-        updatePermissionStatus();
-    }
 
     private void checkAllFilesAccessPermission() {
         if (AllFilesAccessHelper.hasAllFilesAccessPermission()) {
@@ -554,12 +490,7 @@ public class ImageViewerActivity extends AppCompatActivity {
 
 
 
-    /**
-     * 修改原有的loadAllData方法，改为只加载指定文件
-     */
-    private void loadAllData() {
-        loadSpecifiedFiles(); // 替换原来的扫描逻辑
-    }
+
 
     /**
      * 修改addMediaStoreFiles方法，只加载指定文件
@@ -674,10 +605,39 @@ public class ImageViewerActivity extends AppCompatActivity {
         setupViewPager();
         Toast.makeText(this, "已加载 " + imageList.size() + " 个指定图片文件", Toast.LENGTH_SHORT).show();
     }
+    /**
+     * 运行调试测试
+     */
+    private void runDebugTests() {
+        Log.d(TAG, "=== 开始调试测试 ===");
+        Log.d(TAG, "当前壁纸类型: " + wallpaperManager.getCurrentWallpaperTypeName());
+        Log.d(TAG, "当前数据列表大小: " + imageList.size());
+        Log.d(TAG, "适配器项目数: " + (adapter != null ? adapter.getItemCount() : "null"));
+        Log.d(TAG, "ViewPager当前项: " + viewPager.getCurrentItem());
+        Log.d(TAG, "ViewPager可见性: " + viewPager.getVisibility());
+        Log.d(TAG, "ViewPager宽度: " + viewPager.getWidth() + ", 高度: " + viewPager.getHeight());
 
+        // 测试切换到第一个项目
+        if (!imageList.isEmpty()) {
+            viewPager.setCurrentItem(0, true);
+            Log.d(TAG, "强制切换到第一项");
+        }
+
+        // 测试重新加载数据
+        switchWallpaperType(WallpaperType.DEFAULT);
+
+        Toast.makeText(this,
+                "调试信息已输出到Logcat\n数据: " + imageList.size() + "项",
+                Toast.LENGTH_LONG).show();
+    }
     private void setupListeners() {
-        Button btnPagDebug = findViewById(R.id.btnPagDebug);
-        btnPagDebug.setOnClickListener(v -> runDetailedPagDebug());
+        Button btnDebug = findViewById(R.id.btnDebug);
+        if (btnDebug != null) {
+            btnDebug.setOnClickListener(v -> {
+                runDebugTests();
+            });
+        }
+
 
         // 添加Assets调试按钮
         Button btnAssetsDebug = findViewById(R.id.btnAssetsDebug);
@@ -782,5 +742,228 @@ public class ImageViewerActivity extends AppCompatActivity {
         Toast.makeText(this,
                 "已加载 " + imageList.size() + " 个指定文件\n" + stats,
                 Toast.LENGTH_LONG).show();
+    }
+
+
+
+
+
+
+    private WallpaperManager wallpaperManager;
+    private WallpaperBroadcastReceiver broadcastReceiver;
+    private boolean isSmartMode = false;
+    private int currentSmartIndex = 0;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_image_viewer);
+
+        Log.d(TAG, "onCreate: 开始初始化");
+
+        // 1. 初始化视图
+        initViews();
+        Log.d(TAG, "onCreate: 视图初始化完成");
+
+        // 2. 初始化壁纸管理器
+        wallpaperManager = WallpaperManager.getInstance(this);
+        Log.d(TAG, "onCreate: 壁纸管理器初始化完成");
+
+        // 3. 设置广播接收器
+        setupBroadcastReceiver();
+        Log.d(TAG, "onCreate: 广播接收器设置完成");
+
+        // 4. 检查权限
+        checkAllFilesAccessPermission();
+        Log.d(TAG, "onCreate: 权限检查完成");
+
+        // 5. 设置监听器
+        setupListeners();
+        Log.d(TAG, "onCreate: 监听器设置完成");
+
+        // 6. 更新权限状态
+        updatePermissionStatus();
+        Log.d(TAG, "onCreate: 权限状态更新完成");
+
+        // 7. 初始加载默认壁纸
+        switchWallpaperType(WallpaperType.DEFAULT);
+        Log.d(TAG, "onCreate: 初始壁纸加载完成");
+    }
+
+    private void setupBroadcastReceiver() {
+        broadcastReceiver = new WallpaperBroadcastReceiver();
+        broadcastReceiver.setOnWallpaperChangeListener(new WallpaperBroadcastReceiver.OnWallpaperChangeListener() {
+            @Override
+            public void onWallpaperTypeChanged(int newType) {
+                runOnUiThread(() -> {
+                    switchWallpaperType(newType);
+                });
+            }
+
+            @Override
+            public void onConditionChanged(boolean isDay, int temperature, int windLevel) {
+                runOnUiThread(() -> {
+                    updateSmartWallpaper(isDay, temperature, windLevel);
+                });
+            }
+
+            @Override
+            public void onWallpaperListRefreshed() {
+                runOnUiThread(() -> {
+                    refreshWallpaperList();
+                });
+            }
+        });
+
+        // 注册广播接收器
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(WallpaperBroadcastReceiver.ACTION_SWITCH_WALLPAPER);
+        filter.addAction(WallpaperBroadcastReceiver.ACTION_UPDATE_CONDITION);
+        filter.addAction(WallpaperBroadcastReceiver.ACTION_REFRESH_WALLPAPER);
+        registerReceiver(broadcastReceiver, filter);
+    }
+
+    /**
+     * 切换壁纸类型
+     */
+    /**
+     * 切换壁纸类型
+     */
+    private void switchWallpaperType(int wallpaperType) {
+        wallpaperManager.switchWallpaperType(wallpaperType);
+
+        // 更新UI状态
+        isSmartMode = (wallpaperType != WallpaperType.DEFAULT);
+
+        // 更新ViewPager数据 - 重要：重新创建列表引用
+        imageList = new ArrayList<>(wallpaperManager.getCurrentWallpaperList());
+
+        Log.d(TAG, "switchWallpaperType: 切换类型=" + WallpaperType.getName(wallpaperType) +
+                ", 数据数量=" + imageList.size());
+
+        if (adapter == null) {
+            Log.d(TAG, "适配器为空，重新创建");
+            setupViewPager();
+        } else {
+            Log.d(TAG, "更新适配器数据");
+            adapter.updateData(imageList);
+
+            // 强制刷新ViewPager
+            viewPager.setAdapter(null);
+            viewPager.setAdapter(adapter);
+        }
+
+        // 设置ViewPager交互模式
+        viewPager.setUserInputEnabled(wallpaperManager.isInteractiveMode());
+        Log.d(TAG, "ViewPager交互模式: " + wallpaperManager.isInteractiveMode());
+
+        // 如果是智能模式，设置到第一个位置
+        if (isSmartMode && !imageList.isEmpty()) {
+            viewPager.setCurrentItem(0, false);
+            currentPosition = 0;
+        } else if (!imageList.isEmpty()) {
+            // 确保有数据时显示第一项
+            viewPager.setCurrentItem(0, false);
+            currentPosition = 0;
+        }
+
+        updatePositionInfo();
+        updateFileInfo();
+
+        // 添加调试信息
+        Log.d(TAG, "当前页面位置: " + currentPosition + "/" + imageList.size());
+
+        Toast.makeText(this,
+                "已切换到: " + wallpaperManager.getCurrentWallpaperTypeName() +
+                        " (" + imageList.size() + "个项目)" +
+                        (isSmartMode ? " [智能模式]" : " [交互模式]"),
+                Toast.LENGTH_SHORT).show();
+    }
+//    private void switchWallpaperType(int wallpaperType) {
+//        wallpaperManager.switchWallpaperType(wallpaperType);
+//
+//        // 更新UI状态
+//        isSmartMode = (wallpaperType != WallpaperType.DEFAULT);
+//
+//        // 更新ViewPager数据
+//        imageList = wallpaperManager.getCurrentWallpaperList();
+//        if (adapter != null) {
+//            adapter.updateData(imageList);
+//        }
+//
+//        // 设置ViewPager交互模式
+//        viewPager.setUserInputEnabled(wallpaperManager.isInteractiveMode());
+//
+//        // 如果是智能模式，设置到第一个位置
+//        if (isSmartMode && !imageList.isEmpty()) {
+//            viewPager.setCurrentItem(0, false);
+//            currentPosition = 0;
+//        }
+//
+//        updatePositionInfo();
+//        updateFileInfo();
+//
+//        Toast.makeText(this,
+//                "已切换到: " + wallpaperManager.getCurrentWallpaperTypeName() +
+//                        (isSmartMode ? " (智能模式)" : " (交互模式)"),
+//                Toast.LENGTH_SHORT).show();
+//    }
+
+    /**
+     * 更新智能壁纸（根据环境条件）
+     */
+    private void updateSmartWallpaper(boolean isDay, int temperature, int windLevel) {
+        if (!isSmartMode) return;
+
+        int newIndex = wallpaperManager.getSmartWallpaperIndex(isDay, temperature, windLevel);
+
+        if (newIndex != currentSmartIndex && newIndex < imageList.size()) {
+            currentSmartIndex = newIndex;
+            viewPager.setCurrentItem(newIndex, true);
+            currentPosition = newIndex;
+            updatePositionInfo();
+            updateFileInfo();
+
+            Log.d(TAG, "智能壁纸切换: 位置 " + newIndex + " - " +
+                    imageList.get(newIndex).getTitle());
+        }
+    }
+
+    /**
+     * 刷新壁纸列表
+     */
+    private void refreshWallpaperList() {
+        if (wallpaperManager.getCurrentWallpaperType() == WallpaperType.DEFAULT) {
+            // 重新加载默认壁纸列表
+            wallpaperManager.refreshDefaultWallpapers();
+            imageList = wallpaperManager.getCurrentWallpaperList();
+
+            if (adapter != null) {
+                adapter.updateData(imageList);
+                if (!imageList.isEmpty()) {
+                    viewPager.setCurrentItem(0, false);
+                    currentPosition = 0;
+                }
+                updatePositionInfo();
+                updateFileInfo();
+            }
+
+            Toast.makeText(this, "壁纸列表已刷新", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // 注销广播接收器
+        if (broadcastReceiver != null) {
+            unregisterReceiver(broadcastReceiver);
+        }
+    }
+
+    // 修改原有的loadAllData方法
+    private void loadAllData() {
+        // 使用壁纸管理器来管理列表
+        switchWallpaperType(WallpaperType.DEFAULT);
     }
 }
