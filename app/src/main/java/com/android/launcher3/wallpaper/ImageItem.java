@@ -92,7 +92,7 @@ public class ImageItem {
     public boolean isFromSDCard() { return source == SOURCE_SDCARD; }
     public boolean isFromLocal() { return source == SOURCE_LOCAL; }
 
-    public boolean isFromAssets() { return source == SOURCE_ASSETS; } // 新增
+
 
     /**
      * 获取用于Glide加载的源
@@ -109,8 +109,16 @@ public class ImageItem {
         return null;
     }
 
+
     /**
-     * 获取PAG文件路径（统一处理不同来源）
+     * 获取Assets路径（如果是从Assets加载）
+     */
+    public String getAssetsPath() {
+        return assetsPath;
+    }
+
+    /**
+     * 获取用于PAG加载的完整路径
      */
     public String getPagFilePath() {
         if (isFromSDCard()) {
@@ -119,6 +127,13 @@ public class ImageItem {
             return "assets://" + assetsPath; // PAG库需要的格式
         }
         return null;
+    }
+
+    /**
+     * 判断是否是从Assets加载
+     */
+    public boolean isFromAssets() {
+        return source == SOURCE_ASSETS;
     }
 
 }

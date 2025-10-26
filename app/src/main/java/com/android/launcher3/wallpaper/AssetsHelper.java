@@ -8,46 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AssetsHelper {
-    private static final String TAG = "AssetsHelper";
-    
-    /**
-     * 从assets目录加载PAG文件列表
-     */
-    public static List<ImageItem> loadPagFilesFromAssets(Context context) {
-        List<ImageItem> pagList = new ArrayList<>();
-        
-        try {
-            AssetManager assetManager = context.getAssets();
-            
-            // 直接添加已知的PAG文件
-            String[] knownPagFiles = {
-                "animations/wgbz_ssbz_1-day_cold_smallwind.pag",
-                "animations/wgbz_ssbz_1-night_warm_strongwind.pag"
-            };
-            
-            for (String assetPath : knownPagFiles) {
-                // 检查文件是否存在
-                try {
-                    assetManager.open(assetPath).close(); // 尝试打开并立即关闭
-                    ImageItem item = new ImageItem(assetPath, getDisplayName(assetPath), true);
-                    pagList.add(item);
-                    Log.d(TAG, "✅ 找到assets PAG文件: " + assetPath);
-                } catch (IOException e) {
-                    Log.w(TAG, "❌ assets文件不存在: " + assetPath);
-                }
-            }
-            
-            // 可选：扫描animations目录下的所有PAG文件
-            scanAssetsDirectory(assetManager, "animations", pagList);
-            
-        } catch (Exception e) {
-            Log.e(TAG, "加载assets文件失败: " + e.getMessage());
-        }
-        
-        Log.d(TAG, "从assets加载了 " + pagList.size() + " 个PAG文件");
-        return pagList;
-    }
-    
+    private static final String TAG = "ljd AssetsHelper";
+
     /**
      * 扫描assets目录
      */
@@ -100,45 +62,83 @@ public class AssetsHelper {
         return displayName.isEmpty() ? fileName : displayName;
     }
     
+
+    /**
+     * 从assets目录加载指定的PAG文件列表
+     */
+    public static List<ImageItem> loadPagFilesFromAssets(Context context) {
+        List<ImageItem> pagList = new ArrayList<>();
+
+        try {
+            AssetManager assetManager = context.getAssets();
+
+            // 只加载指定的PAG文件
+            String[] specifiedPagFiles = {
+                    "animations/wgbz_ssbz_1-day_cold_smallwind.pag",
+                    "animations/wgbz_ssbz_1-night_warm_strongwind.pag"
+            };
+
+            String[] displayNames = {
+                    "白天寒冷微风",
+                    "夜晚温暖强风"
+            };
+
+            for (int i = 0; i < specifiedPagFiles.length; i++) {
+                String assetPath = specifiedPagFiles[i];
+                String displayName = displayNames[i];
+
+                // 检查文件是否存在
+                try {
+                    assetManager.open(assetPath).close();
+                    ImageItem item = new ImageItem(assetPath, displayName, true);
+                    pagList.add(item);
+                    Log.d(TAG, "✅ 找到指定assets PAG文件: " + assetPath);
+                } catch (IOException e) {
+                    Log.w(TAG, "❌ 指定assets文件不存在: " + assetPath);
+                }
+            }
+
+            // 不再扫描整个目录，只加载指定文件
+
+        } catch (Exception e) {
+            Log.e(TAG, "加载指定assets文件失败: " + e.getMessage());
+        }
+
+        Log.d(TAG, "从assets加载了 " + pagList.size() + " 个指定PAG文件");
+        return pagList;
+    }
+
+
+
+
+    /**
+     * 检查assets文件是否存在
+     */
+    public static boolean isAssetFileExists(Context context, String assetPath) {
+        try {
+            context.getAssets().open(assetPath).close();
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     /**
      * 测试assets文件访问
      */
     public static void testAssetsAccess(Context context) {
         Log.d(TAG, "=== Assets访问测试 ===");
-        
-        try {
-            AssetManager assetManager = context.getAssets();
-            
-            // 测试已知文件
-            String[] testFiles = {
+
+        // 测试指定的assets文件
+        String[] testFiles = {
                 "animations/wgbz_ssbz_1-day_cold_smallwind.pag",
                 "animations/wgbz_ssbz_1-night_warm_strongwind.pag"
-            };
-            
-            for (String filePath : testFiles) {
-                try {
-                    assetManager.open(filePath).close();
-                    Log.d(TAG, "✅ assets文件可访问: " + filePath);
-                } catch (IOException e) {
-                    Log.e(TAG, "❌ assets文件不可访问: " + filePath);
-                }
-            }
-            
-            // 列出animations目录内容
-            try {
-                String[] animationsFiles = assetManager.list("animations");
-                Log.d(TAG, "animations目录文件数: " + (animationsFiles != null ? animationsFiles.length : "null"));
-                if (animationsFiles != null) {
-                    for (String file : animationsFiles) {
-                        Log.d(TAG, "animations文件: " + file);
-                    }
-                }
-            } catch (IOException e) {
-                Log.e(TAG, "无法列出animations目录");
-            }
-            
-        } catch (Exception e) {
-            Log.e(TAG, "assets测试失败: " + e.getMessage());
+        };
+
+        for (String filePath : testFiles) {
+            boolean exists = isAssetFileExists(context, filePath);
+            Log.d(TAG, (exists ? "✅" : "❌") + " assets文件: " + filePath);
         }
     }
+
 }

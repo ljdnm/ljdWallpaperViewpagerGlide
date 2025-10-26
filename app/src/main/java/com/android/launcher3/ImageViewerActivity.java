@@ -17,8 +17,10 @@ import com.android.launcher3.wallpaper.ImageItem;
 import com.android.launcher3.wallpaper.ImagePagerAdapter;
 import com.android.launcher3.wallpaper.MediaStoreHelper;
 import com.android.launcher3.wallpaper.PermissionHelper;
+import com.android.launcher3.wallpaper.SpecifiedFileManager;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,42 +40,6 @@ public class ImageViewerActivity extends AppCompatActivity {
     private int currentPosition = 0;
     
 
-    private void setupListeners() {
-        Button btnPagDebug = findViewById(R.id.btnPagDebug);
-        btnPagDebug.setOnClickListener(v -> runDetailedPagDebug());
-        btnDelete.setOnClickListener(v -> {
-            showDeleteConfirmDialog(currentPosition);
-        });
-
-        btnReload.setOnClickListener(v -> {
-            reloadMediaFiles();
-        });
-
-        // 添加调试按钮
-        Button btnDebug = findViewById(R.id.btnDebug);
-        btnDebug.setOnClickListener(v -> {
-//            runDebugTests();
-        });
-
-        // 添加权限状态检查按钮
-        Button btnCheckPermission = findViewById(R.id.btnCheckPermission);
-        if (btnCheckPermission != null) {
-            btnCheckPermission.setOnClickListener(v -> {
-                updatePermissionStatus();
-                Toast.makeText(this,
-                        "权限状态: " + (AllFilesAccessHelper.hasAllFilesAccessPermission() ? "全权限" : "受限"),
-                        Toast.LENGTH_SHORT).show();
-            });
-        }
-        Button btnAssetsDebug = findViewById(R.id.btnAssetsDebug);
-        if (btnAssetsDebug != null) {
-            btnAssetsDebug.setOnClickListener(v -> {
-                new Thread(() -> {
-                    AssetsHelper.testAssetsAccess(this);
-                }).start();
-            });
-        }
-    }
 
     private void initViews() {
         viewPager = findViewById(R.id.viewPager);
@@ -111,27 +77,27 @@ public class ImageViewerActivity extends AppCompatActivity {
     
 
     
-    private void addLocalResources() {
-        // 添加本地PNG资源
-        int[] pngResources = {
-            R.drawable.jtbz_zrsg_alphelia,
-            R.drawable.jtbz_zrsg_crimsono,
-            R.drawable.jtbz_zrsg_equinoxis,
-            R.drawable.jtbz_zrsg_harmonia,
-            R.drawable.jtbz_zrsg_thalassa,
-            R.drawable.jtbz_zrsg_zephyria
-        };
-        
-        String[] pngNames = {
-            "阿尔菲莉亚", "克里姆森", "伊奎诺克西斯", 
-            "哈莫尼亚", "塔拉萨", "泽菲莉亚"
-        };
-        
-        for (int i = 0; i < pngResources.length; i++) {
-            ImageItem item = new ImageItem(pngResources[i], pngNames[i], false);
-            imageList.add(item);
-        }
-    }
+//    private void addLocalResources() {
+//        // 添加本地PNG资源
+//        int[] pngResources = {
+//            R.drawable.jtbz_zrsg_alphelia,
+//            R.drawable.jtbz_zrsg_crimsono,
+//            R.drawable.jtbz_zrsg_equinoxis,
+//            R.drawable.jtbz_zrsg_harmonia,
+//            R.drawable.jtbz_zrsg_thalassa,
+//            R.drawable.jtbz_zrsg_zephyria
+//        };
+//
+//        String[] pngNames = {
+//            "阿尔菲莉亚", "克里姆森", "伊奎诺克西斯",
+//            "哈莫尼亚", "塔拉萨", "泽菲莉亚"
+//        };
+//
+//        for (int i = 0; i < pngResources.length; i++) {
+//            ImageItem item = new ImageItem(pngResources[i], pngNames[i], false);
+//            imageList.add(item);
+//        }
+//    }
 
 
     
@@ -142,39 +108,39 @@ public class ImageViewerActivity extends AppCompatActivity {
         Toast.makeText(this, "已加载 " + imageList.size() + " 个内置资源", Toast.LENGTH_SHORT).show();
     }
     
-    private void reloadMediaFiles() {
-        if (!PermissionHelper.hasStoragePermission(this)) {
-            Toast.makeText(this, "没有存储权限", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        updatePermissionStatus();
-        // 移除现有的媒体库文件，保留本地资源
-        List<ImageItem> localItems = new ArrayList<>();
-        for (ImageItem item : imageList) {
-            if (item.isFromLocal()) {
-                localItems.add(item);
-            }
-        }
-        
-        imageList = localItems;
-        addMediaStoreFiles();
-        
-        if (adapter != null) {
-            adapter.updateData(imageList);
-            
-            // 重置到第一页
-            if (!imageList.isEmpty()) {
-                viewPager.setCurrentItem(0, false);
-                currentPosition = 0;
-            }
-            
-            updatePositionInfo();
-            updateFileInfo();
-        }
-        
-        Toast.makeText(this, "重新加载完成，媒体库文件: " + getSdcardCount() + " 个", 
-                     Toast.LENGTH_SHORT).show();
-    }
+//    private void reloadMediaFiles() {
+//        if (!PermissionHelper.hasStoragePermission(this)) {
+//            Toast.makeText(this, "没有存储权限", Toast.LENGTH_SHORT).show();
+//            return;
+//        }
+//        updatePermissionStatus();
+//        // 移除现有的媒体库文件，保留本地资源
+//        List<ImageItem> localItems = new ArrayList<>();
+//        for (ImageItem item : imageList) {
+//            if (item.isFromLocal()) {
+//                localItems.add(item);
+//            }
+//        }
+//
+//        imageList = localItems;
+//        addMediaStoreFiles();
+//
+//        if (adapter != null) {
+//            adapter.updateData(imageList);
+//
+//            // 重置到第一页
+//            if (!imageList.isEmpty()) {
+//                viewPager.setCurrentItem(0, false);
+//                currentPosition = 0;
+//            }
+//
+//            updatePositionInfo();
+//            updateFileInfo();
+//        }
+//
+//        Toast.makeText(this, "重新加载完成，媒体库文件: " + getSdcardCount() + " 个",
+//                     Toast.LENGTH_SHORT).show();
+//    }
     
     private int getSdcardCount() {
         int count = 0;
@@ -401,34 +367,34 @@ public class ImageViewerActivity extends AppCompatActivity {
             });
         }).start();
     }
-    private void addMediaStoreFiles() {
-        // 方法1：尝试从特定目录加载图片
-        Log.d(TAG, "尝试从 LionWallpaper 目录加载图片文件...");
-        List<ImageItem> specificFiles = MediaStoreHelper.loadImagesFromSpecificDirectory(this, "LionWallpaper");
-
-        if (!specificFiles.isEmpty()) {
-            imageList.addAll(specificFiles);
-            Log.d(TAG, "从 LionWallpaper 目录成功加载 " + specificFiles.size() + " 个图片文件");
-        }
-
-        // 方法2：直接加载已知的PAG文件
-        Log.d(TAG, "直接加载已知PAG文件...");
-        List<ImageItem> knownPagFiles = FileSearchHelper.loadKnownPagFiles();
-
-        if (!knownPagFiles.isEmpty()) {
-            imageList.addAll(knownPagFiles);
-            Log.d(TAG, "成功加载 " + knownPagFiles.size() + " 个已知PAG文件");
-        } else {
-            Log.w(TAG, "已知PAG文件加载失败，尝试扫描...");
-
-            // 方法3：扫描目录
-            List<ImageItem> scannedPagFiles = FileSearchHelper.scanPagFiles();
-            if (!scannedPagFiles.isEmpty()) {
-                imageList.addAll(scannedPagFiles);
-                Log.d(TAG, "扫描找到 " + scannedPagFiles.size() + " 个PAG文件");
-            }
-        }
-    }
+//    private void addMediaStoreFiles() {
+//        // 方法1：尝试从特定目录加载图片
+//        Log.d(TAG, "尝试从 LionWallpaper 目录加载图片文件...");
+//        List<ImageItem> specificFiles = MediaStoreHelper.loadImagesFromSpecificDirectory(this, "LionWallpaper");
+//
+//        if (!specificFiles.isEmpty()) {
+//            imageList.addAll(specificFiles);
+//            Log.d(TAG, "从 LionWallpaper 目录成功加载 " + specificFiles.size() + " 个图片文件");
+//        }
+//
+//        // 方法2：直接加载已知的PAG文件
+//        Log.d(TAG, "直接加载已知PAG文件...");
+//        List<ImageItem> knownPagFiles = FileSearchHelper.loadKnownPagFiles();
+//
+//        if (!knownPagFiles.isEmpty()) {
+//            imageList.addAll(knownPagFiles);
+//            Log.d(TAG, "成功加载 " + knownPagFiles.size() + " 个已知PAG文件");
+//        } else {
+//            Log.w(TAG, "已知PAG文件加载失败，尝试扫描...");
+//
+//            // 方法3：扫描目录
+//            List<ImageItem> scannedPagFiles = FileSearchHelper.scanPagFiles();
+//            if (!scannedPagFiles.isEmpty()) {
+//                imageList.addAll(scannedPagFiles);
+//                Log.d(TAG, "扫描找到 " + scannedPagFiles.size() + " 个PAG文件");
+//            }
+//        }
+//    }
 
 
     @Override
@@ -469,19 +435,19 @@ public class ImageViewerActivity extends AppCompatActivity {
 //                .show();
 //    }
 
-    private void loadImagesOnly() {
-        imageList = new ArrayList<>();
-
-        // 添加本地资源
-        addLocalResources();
-
-        // 只加载图片文件（不需要所有文件权限）
-        addMediaStoreImages();
-
-        setupViewPager();
-
-        Toast.makeText(this, "已加载 " + imageList.size() + " 个图片文件", Toast.LENGTH_SHORT).show();
-    }
+//    private void loadImagesOnly() {
+//        imageList = new ArrayList<>();
+//
+//        // 添加本地资源
+//        addLocalResources();
+//
+//        // 只加载图片文件（不需要所有文件权限）
+//        addMediaStoreImages();
+//
+//        setupViewPager();
+//
+//        Toast.makeText(this, "已加载 " + imageList.size() + " 个图片文件", Toast.LENGTH_SHORT).show();
+//    }
 
     private void addMediaStoreImages() {
         // 只加载通过MediaStore可访问的图片
@@ -543,39 +509,39 @@ public class ImageViewerActivity extends AppCompatActivity {
     }
 
 
-    private void loadAllData() {
-        imageList = new ArrayList<>();
-
-        // 添加本地资源图片
-        addLocalResources();
-
-        // 添加assets PAG文件
-        addAssetsPagFiles();
-
-        // 添加SDCard文件
-        addMediaStoreFiles();
-
-        setupViewPager();
-
-        Log.d(TAG, "数据加载完成，总共: " + imageList.size() + " 个文件");
-        Log.d(TAG, "assets文件: " + getAssetsCount() + " 个");
-        Log.d(TAG, "SDCard文件: " + getSdcardCount() + " 个");
-        Log.d(TAG, "本地资源: " + getLocalCount() + " 个");
-    }
-
-    private void addAssetsPagFiles() {
-        Log.d(TAG, "开始加载assets PAG文件...");
-        List<ImageItem> assetsFiles = AssetsHelper.loadPagFilesFromAssets(this);
-
-        if (!assetsFiles.isEmpty()) {
-            imageList.addAll(assetsFiles);
-            Log.d(TAG, "成功加载 " + assetsFiles.size() + " 个assets PAG文件");
-        } else {
-            Log.w(TAG, "未找到assets PAG文件");
-            // 测试assets访问
-            AssetsHelper.testAssetsAccess(this);
-        }
-    }
+//    private void loadAllData() {
+//        imageList = new ArrayList<>();
+//
+//        // 添加本地资源图片
+//        addLocalResources();
+//
+//        // 添加assets PAG文件
+//        addAssetsPagFiles();
+//
+//        // 添加SDCard文件
+//        addMediaStoreFiles();
+//
+//        setupViewPager();
+//
+//        Log.d(TAG, "数据加载完成，总共: " + imageList.size() + " 个文件");
+//        Log.d(TAG, "assets文件: " + getAssetsCount() + " 个");
+//        Log.d(TAG, "SDCard文件: " + getSdcardCount() + " 个");
+//        Log.d(TAG, "本地资源: " + getLocalCount() + " 个");
+//    }
+//
+//    private void addAssetsPagFiles() {
+//        Log.d(TAG, "开始加载assets PAG文件...");
+//        List<ImageItem> assetsFiles = AssetsHelper.loadPagFilesFromAssets(this);
+//
+//        if (!assetsFiles.isEmpty()) {
+//            imageList.addAll(assetsFiles);
+//            Log.d(TAG, "成功加载 " + assetsFiles.size() + " 个assets PAG文件");
+//        } else {
+//            Log.w(TAG, "未找到assets PAG文件");
+//            // 测试assets访问
+//            AssetsHelper.testAssetsAccess(this);
+//        }
+//    }
 
     private int getAssetsCount() {
         int count = 0;
@@ -583,5 +549,238 @@ public class ImageViewerActivity extends AppCompatActivity {
             if (item.isFromAssets()) count++;
         }
         return count;
+    }
+
+
+
+
+    /**
+     * 修改原有的loadAllData方法，改为只加载指定文件
+     */
+    private void loadAllData() {
+        loadSpecifiedFiles(); // 替换原来的扫描逻辑
+    }
+
+    /**
+     * 修改addMediaStoreFiles方法，只加载指定文件
+     */
+    private void addMediaStoreFiles() {
+        Log.d(TAG, "开始加载指定SDCard文件...");
+
+        // 使用SpecifiedFileManager中的逻辑来添加SDCard文件
+        String[] specifiedSdcardFiles = {
+                "/storage/emulated/0/Download/LionWallpaper/blue_bmp.pag",
+                "/storage/emulated/0/Download/LionWallpaper/red_bmp.pag",
+                "/storage/emulated/0/Download/LionWallpaper/test.pag",
+                "/storage/emulated/0/Download/LionWallpaper/white_bmp.pag"
+        };
+
+        for (String filePath : specifiedSdcardFiles) {
+            File file = new File(filePath);
+            if (file.exists() && file.canRead()) {
+                ImageItem item = new ImageItem(filePath, file.getName());
+                imageList.add(item);
+                Log.d(TAG, "✅ 加载指定SDCard文件: " + file.getName());
+            } else {
+                Log.w(TAG, "❌ 指定SDCard文件不可访问: " + filePath);
+            }
+        }
+
+        Log.d(TAG, "SDCard指定文件加载完成: " + getSdcardCount() + " 个");
+    }
+
+    /**
+     * 修改addAssetsPagFiles方法，只加载指定文件
+     */
+    private void addAssetsPagFiles() {
+        Log.d(TAG, "开始加载指定Assets PAG文件...");
+
+        // 使用SpecifiedFileManager中的逻辑来添加Assets文件
+        String[] specifiedAssetsFiles = {
+                "animations/wgbz_ssbz_1-day_cold_smallwind.pag",
+                "animations/wgbz_ssbz_1-night_warm_strongwind.pag"
+        };
+
+        String[] displayNames = {
+                "白天寒冷微风",
+                "夜晚温暖强风"
+        };
+
+        for (int i = 0; i < specifiedAssetsFiles.length; i++) {
+            String assetPath = specifiedAssetsFiles[i];
+            String displayName = displayNames[i];
+
+            try {
+                getAssets().open(assetPath).close();
+                ImageItem item = new ImageItem(assetPath, displayName, true);
+                imageList.add(item);
+                Log.d(TAG, "✅ 加载指定Assets文件: " + assetPath);
+            } catch (Exception e) {
+                Log.w(TAG, "❌ 指定Assets文件不存在: " + assetPath);
+            }
+        }
+
+        Log.d(TAG, "Assets指定文件加载完成: " + getAssetsCount() + " 个");
+    }
+
+    /**
+     * 修改addLocalResources方法
+     */
+    private void addLocalResources() {
+        // 使用SpecifiedFileManager中的逻辑来添加本地资源
+        int[] localPngResources = {
+                R.drawable.jtbz_zrsg_alphelia,
+                R.drawable.jtbz_zrsg_crimsono,
+                R.drawable.jtbz_zrsg_equinoxis,
+                R.drawable.jtbz_zrsg_harmonia,
+                R.drawable.jtbz_zrsg_thalassa,
+                R.drawable.jtbz_zrsg_zephyria
+        };
+
+        String[] localPngNames = {
+                "阿尔菲莉亚", "克里姆森", "伊奎诺克西斯",
+                "哈莫尼亚", "塔拉萨", "泽菲莉亚"
+        };
+
+        for (int i = 0; i < localPngResources.length; i++) {
+            ImageItem item = new ImageItem(localPngResources[i], localPngNames[i], false);
+            imageList.add(item);
+        }
+    }
+
+    /**
+     * 修改reloadMediaFiles方法
+     */
+    private void reloadMediaFiles() {
+        if (!PermissionHelper.hasStoragePermission(this)) {
+            Toast.makeText(this, "没有存储权限", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 重新加载指定文件
+        loadSpecifiedFiles();
+        Toast.makeText(this, "重新加载指定文件完成", Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * 修改loadImagesOnly方法
+     */
+    private void loadImagesOnly() {
+        imageList = new ArrayList<>();
+
+        // 只加载指定的本地PNG资源
+        addLocalResources();
+
+        setupViewPager();
+        Toast.makeText(this, "已加载 " + imageList.size() + " 个指定图片文件", Toast.LENGTH_SHORT).show();
+    }
+
+    private void setupListeners() {
+        Button btnPagDebug = findViewById(R.id.btnPagDebug);
+        btnPagDebug.setOnClickListener(v -> runDetailedPagDebug());
+
+        // 添加Assets调试按钮
+        Button btnAssetsDebug = findViewById(R.id.btnAssetsDebug);
+        if (btnAssetsDebug != null) {
+            btnAssetsDebug.setOnClickListener(v -> {
+                runAssetsDebugTest();
+            });
+        }
+
+        btnDelete.setOnClickListener(v -> {
+            showDeleteConfirmDialog(currentPosition);
+        });
+
+        btnReload.setOnClickListener(v -> {
+            reloadMediaFiles();
+        });
+
+        // 添加权限状态检查按钮
+        Button btnCheckPermission = findViewById(R.id.btnCheckPermission);
+        if (btnCheckPermission != null) {
+            btnCheckPermission.setOnClickListener(v -> {
+                updatePermissionStatus();
+                Toast.makeText(this,
+                        "权限状态: " + (AllFilesAccessHelper.hasAllFilesAccessPermission() ? "全权限" : "受限"),
+                        Toast.LENGTH_SHORT).show();
+            });
+        }
+    }
+
+    /**
+     * Assets调试测试
+     */
+    private void runAssetsDebugTest() {
+        new Thread(() -> {
+            Log.d(TAG, "=== 开始Assets调试测试 ===");
+
+            try {
+                // 列出所有Assets根目录
+                String[] rootAssets = getAssets().list("");
+                Log.d(TAG, "Assets根目录文件数: " + (rootAssets != null ? rootAssets.length : "null"));
+                if (rootAssets != null) {
+                    for (String asset : rootAssets) {
+                        Log.d(TAG, "Assets根目录: " + asset);
+                    }
+                }
+
+                // 检查animations目录
+                String[] animations = getAssets().list("animations");
+                Log.d(TAG, "animations目录文件数: " + (animations != null ? animations.length : "null"));
+                if (animations != null) {
+                    for (String anim : animations) {
+                        Log.d(TAG, "animations文件: " + anim);
+
+                        // 尝试打开每个文件
+                        String fullPath = "animations/" + anim;
+                        try {
+                            getAssets().open(fullPath).close();
+                            Log.d(TAG, "✅ 可打开: " + fullPath);
+                        } catch (IOException e) {
+                            Log.d(TAG, "❌ 不可打开: " + fullPath + ", 错误: " + e.getMessage());
+                        }
+                    }
+                }
+
+                // 测试指定的文件
+                String[] testFiles = {
+                        "animations/wgbz_ssbz_1-day_cold_smallwind.pag",
+                        "animations/wgbz_ssbz_1-night_warm_strongwind.pag"
+                };
+
+                for (String testFile : testFiles) {
+                    try {
+                        getAssets().open(testFile).close();
+                        Log.d(TAG, "🎯 指定文件可访问: " + testFile);
+                    } catch (IOException e) {
+                        Log.d(TAG, "💥 指定文件不可访问: " + testFile + ", 错误: " + e.getMessage());
+                    }
+                }
+
+            } catch (Exception e) {
+                Log.e(TAG, "Assets调试异常: " + e.getMessage());
+            }
+
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Assets调试完成，查看Logcat", Toast.LENGTH_LONG).show();
+            });
+        }).start();
+    }
+
+    /**
+     * 加载指定的文件列表
+     */
+    private void loadSpecifiedFiles() {
+        Log.d(TAG, "=== 开始加载指定文件 ===");
+        imageList = SpecifiedFileManager.createSpecifiedFileList(this);
+        setupViewPager();
+
+        String stats = SpecifiedFileManager.getFileStatistics(imageList);
+        Log.d(TAG, "指定文件加载完成，总共: " + imageList.size() + " 个文件");
+        Log.d(TAG, "统计: " + stats);
+
+        Toast.makeText(this,
+                "已加载 " + imageList.size() + " 个指定文件\n" + stats,
+                Toast.LENGTH_LONG).show();
     }
 }

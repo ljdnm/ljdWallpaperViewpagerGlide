@@ -13,14 +13,13 @@
         android:background="#33000000"
         android:padding="16dp"
         android:orientation="horizontal">
+
         <Button
             android:id="@+id/btnAssetsDebug"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Assets测试"
-            android:layout_marginEnd="8dp"
-            android:backgroundTint="#3F51B5"
-            android:textColor="@android:color/white" />
+            android:text="Assets调试"
+            android:layout_marginEnd="8dp" />
         <TextView
             android:id="@+id/tvCurrentPosition"
             android:layout_width="wrap_content"

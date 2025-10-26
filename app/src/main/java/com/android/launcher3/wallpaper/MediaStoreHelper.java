@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MediaStoreHelper {
-    private static final String TAG = "MediaStoreHelper";
+    private static final String TAG = "ljd MediaStoreHelper";
     
     /**
      * 查询所有文件（包括PAG）
@@ -94,85 +94,7 @@ public class MediaStoreHelper {
         return pagList;
     }
     
-    /**
-     * 使用直接文件访问作为备用方案（需要所有文件权限）
-     */
 
-    /**
-     * 通过MediaStore获取指定目录下的图片和PAG文件
-     */
-    public static List<ImageItem> loadImagesFromSpecificDirectory(Context context, String directoryName) {
-        List<ImageItem> imageList = new ArrayList<>();
-
-        if (!PermissionHelper.hasStoragePermission((Activity) context)) {
-            Log.w(TAG, "没有存储权限");
-            return imageList;
-        }
-
-        String[] projection = {
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.DATA,
-                MediaStore.Images.Media.MIME_TYPE,
-                MediaStore.Images.Media.RELATIVE_PATH
-        };
-
-        // 修改查询条件：查找包含指定目录名的文件
-        String selection = MediaStore.Images.Media.DATA + " LIKE ?";
-        String[] selectionArgs = new String[]{"%" + directoryName + "%"};
-
-        String sortOrder = MediaStore.Images.Media.DATE_ADDED + " DESC";
-
-        try (Cursor cursor = context.getContentResolver().query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                sortOrder)) {
-
-            if (cursor != null) {
-                int idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID);
-                int nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME);
-                int dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
-                int mimeTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE);
-                int pathColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH);
-
-                Log.d(TAG, "开始查询目录: " + directoryName);
-
-                while (cursor.moveToNext()) {
-                    long id = cursor.getLong(idColumn);
-                    String name = cursor.getString(nameColumn);
-                    String filePath = cursor.getString(dataColumn);
-                    String mimeType = cursor.getString(mimeTypeColumn);
-                    String relativePath = cursor.getString(pathColumn);
-
-                    Log.d(TAG, "找到文件: " + name + ", 路径: " + filePath + ", 相对路径: " + relativePath);
-
-                    // 只处理图片和PAG文件
-                    if (isSupportedFile(name, mimeType)) {
-                        Uri contentUri = ContentUris.withAppendedId(
-                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
-
-                        ImageItem item = new ImageItem(filePath, contentUri, name, ImageItem.SOURCE_SDCARD);
-                        imageList.add(item);
-
-                        Log.d(TAG, "✅ 成功添加文件: " + name + ", URI: " + contentUri);
-                    }
-                }
-
-                Log.d(TAG, "从目录 " + directoryName + " 加载了 " + imageList.size() + " 个文件");
-            } else {
-                Log.e(TAG, "查询返回null cursor");
-            }
-        } catch (SecurityException e) {
-            Log.e(TAG, "权限不足: " + e.getMessage());
-        } catch (Exception e) {
-            Log.e(TAG, "MediaStore查询失败: " + e.getMessage());
-            e.printStackTrace();
-        }
-
-        return imageList;
-    }
     /**
      * 检查是否支持的文件类型
      */
@@ -218,5 +140,119 @@ public class MediaStoreHelper {
         }
 
         return pagList;
+    }
+
+    /**
+     * 只加载指定目录下的指定文件
+     */
+    public static List<ImageItem> loadImagesFromSpecificDirectory(Context context, String directoryName) {
+        List<ImageItem> imageList = new ArrayList<>();
+
+        if (!PermissionHelper.hasStoragePermission((Activity) context)) {
+            Log.w(TAG, "没有存储权限");
+            return imageList;
+        }
+
+        // 使用更精确的查询条件，只查找指定文件
+        String[] specifiedFiles = {
+                "blue_bmp.pag",
+                "red_bmp.pag",
+                "test.pag",
+                "white_bmp.pag"
+        };
+
+        for (String fileName : specifiedFiles) {
+            String selection = MediaStore.Images.Media.DISPLAY_NAME + " = ? AND " +
+                    MediaStore.Images.Media.DATA + " LIKE ?";
+            String[] selectionArgs = new String[]{fileName, "%" + directoryName + "%"};
+
+            try (Cursor cursor = context.getContentResolver().query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    new String[]{
+                            MediaStore.Images.Media._ID,
+                            MediaStore.Images.Media.DISPLAY_NAME,
+                            MediaStore.Images.Media.DATA
+                    },
+                    selection,
+                    selectionArgs,
+                    null)) {
+
+                if (cursor != null && cursor.moveToFirst()) {
+                    long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
+                    String name = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME));
+                    String filePath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA));
+
+                    Uri contentUri = ContentUris.withAppendedId(
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
+
+                    ImageItem item = new ImageItem(filePath, contentUri, name, ImageItem.SOURCE_SDCARD);
+                    imageList.add(item);
+
+                    Log.d(TAG, "✅ 找到指定文件: " + name + ", 路径: " + filePath);
+                } else {
+                    Log.w(TAG, "❌ 未找到指定文件: " + fileName);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "查询指定文件失败: " + fileName + ", 错误: " + e.getMessage());
+            }
+        }
+
+        Log.d(TAG, "从目录 " + directoryName + " 加载了 " + imageList.size() + " 个指定文件");
+        return imageList;
+    }
+
+
+    /**
+     * 查询指定的文件（精确匹配文件名）
+     */
+    public static List<ImageItem> loadSpecifiedFiles(Context context) {
+        List<ImageItem> fileList = new ArrayList<>();
+
+        if (!PermissionHelper.hasStoragePermission((Activity) context)) {
+            return fileList;
+        }
+
+        // 指定的文件名
+        String[] specifiedFiles = {
+                "blue_bmp.pag",
+                "red_bmp.pag",
+                "test.pag",
+                "white_bmp.pag"
+        };
+
+        for (String fileName : specifiedFiles) {
+            String selection = MediaStore.Files.FileColumns.DISPLAY_NAME + " = ?";
+            String[] selectionArgs = new String[]{fileName};
+
+            try (Cursor cursor = context.getContentResolver().query(
+                    MediaStore.Files.getContentUri("external"),
+                    new String[]{
+                            MediaStore.Files.FileColumns._ID,
+                            MediaStore.Files.FileColumns.DISPLAY_NAME,
+                            MediaStore.Files.FileColumns.DATA
+                    },
+                    selection,
+                    selectionArgs,
+                    null)) {
+
+                if (cursor != null && cursor.moveToFirst()) {
+                    long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID));
+                    String name = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME));
+                    String filePath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA));
+
+                    Uri contentUri = ContentUris.withAppendedId(
+                            MediaStore.Files.getContentUri("external"), id);
+
+                    ImageItem item = new ImageItem(filePath, contentUri, name, ImageItem.SOURCE_SDCARD);
+                    fileList.add(item);
+
+                    Log.d(TAG, "✅ 通过MediaStore找到指定文件: " + name);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "查询指定文件失败: " + fileName, e);
+            }
+        }
+
+        return fileList;
     }
 }
